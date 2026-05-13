@@ -199,8 +199,6 @@ const SCENES: SceneDef[] = [
   },
 ];
 
-const N = SCENES.length;
-const posToIdx = (p: number) => ((p % N) + N) % N;
 
 const W = 402;
 const H = 874;
@@ -223,8 +221,8 @@ const KRASNY: CL[] = [
   { x:182, y:211, w:131, h:142, blur:59,  blend:'color-dodge', op:0.5, bg:'radial-gradient(circle, rgb(255,0,4) 0%, rgba(255,238,155,0.65) 100%)' },
   { x:174, y:186, w:131, h:142, blur:59,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(255,80,10) 0%, rgba(255,238,155,0.65) 100%)' },
   // Group 1 core
-  { x:163, y:188, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,238,155) 0%, rgba(255,0,4,0) 100%)' },
-  { x:195, y:220, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,245,200,0) 100%)' },
+  { x:183, y:208, w:91,  h:91,  blur:22,  blend:'screen', op:0.32, bg:'radial-gradient(circle, rgb(255,238,155) 0%, rgba(255,0,4,0) 100%)' },
+  { x:205, y:230, w:46,  h:46,  blur:11,  blend:'screen', op:0.32, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,245,200,0) 100%)' },
   // Group 2 (bottom-right, blobGroup 1) — fog=255,63,0 / screen→orange / body=salmon
   { x:244, y:434, w:140, h:155, blur:38,  bg:'radial-gradient(circle, rgb(255,149,96) 0%, rgba(255,63,0,0) 100%)' },
   { x:201, y:415, w:164, h:178, blur:28,  blend:'color',   bg:'radial-gradient(circle, rgb(255,216,197) 0%, rgba(255,253,180,0.65) 100%)' },
@@ -235,8 +233,8 @@ const KRASNY: CL[] = [
   { x:230, y:454, w:131, h:142, blur:44,  blend:'luminosity',  bg:'radial-gradient(circle, rgb(255,149,96) 0%, rgba(255,238,155,0.65) 100%)' },
   { x:264, y:474, w:66,  h:74,  blur:33,  blend:'lighten', op:0.5, bg:'rgb(255,246,233)' },
   // Group 2 core
-  { x:220, y:465, w:130, h:130, blur:24,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,238,155) 0%, rgba(255,0,4,0) 100%)' },
-  { x:252, y:497, w:65,  h:65,  blur:11,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,245,200,0) 100%)' },
+  { x:240, y:485, w:91,  h:91,  blur:17,  blend:'screen', op:0.32, bg:'radial-gradient(circle, rgb(255,238,155) 0%, rgba(255,0,4,0) 100%)' },
+  { x:262, y:507, w:46,  h:46,  blur:8,   blend:'screen', op:0.32, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,245,200,0) 100%)' },
   // Group 3 (left, blobGroup 0) — fog=255,0,80 / screen→magenta / body=peach
   { x:-13, y:273, w:255, h:287, blur:95,  blend:'lighten', op:0.35, bg:'radial-gradient(circle, rgb(255,0,80) 0%, rgb(45,11,54) 100%)' },
   { x:77,  y:367, w:121, h:139, blur:33,  blend:'color',   bg:'radial-gradient(circle, rgb(255,216,197) 0%, rgba(255,253,180,0.65) 100%)' },
@@ -247,8 +245,8 @@ const KRASNY: CL[] = [
   { x:67,  y:367, w:97,  h:111, blur:52,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(255,191,160) 0%, rgba(255,238,155,0.65) 100%)' },
   { x:87,  y:382, w:66,  h:74,  blur:44,  blend:'lighten', op:0.5, bg:'rgb(255,191,160)' },
   // Group 3 core
-  { x:55,  y:358, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,238,155) 0%, rgba(255,0,80,0) 100%)' },
-  { x:87,  y:390, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,245,200,0) 100%)' },
+  { x:75,  y:378, w:91,  h:91,  blur:22,  blend:'screen', op:0.32, bg:'radial-gradient(circle, rgb(255,238,155) 0%, rgba(255,0,80,0) 100%)' },
+  { x:97,  y:400, w:46,  h:46,  blur:11,  blend:'screen', op:0.32, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,245,200,0) 100%)' },
 ];
 
 // Закат — same positions/structure as KRASNY, sunset palette, 1 color per source
@@ -262,8 +260,8 @@ const ZAKATY: CL[] = [
   { x:182, y:211, w:131, h:142, blur:59,  blend:'color-dodge', op:0.5, bg:'radial-gradient(circle, rgb(255,155,15) 0%, rgba(255,215,115,0.65) 100%)' },
   { x:174, y:186, w:131, h:142, blur:59,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(255,172,40) 0%, rgba(255,215,115,0.65) 100%)' },
   // Group 1 core — bright orange-gold + warm white
-  { x:163, y:188, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,225,130) 0%, rgba(255,155,10,0) 100%)' },
-  { x:195, y:220, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,250,230) 0%, rgba(255,220,150,0) 100%)' },
+  { x:183, y:208, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,225,130) 0%, rgba(255,155,10,0) 100%)' },
+  { x:205, y:230, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,250,230) 0%, rgba(255,220,150,0) 100%)' },
   // Group 2 (bottom-right) — orange-red, single hue
   { x:244, y:434, w:140, h:155, blur:38,  bg:'radial-gradient(circle, rgb(255,120,50) 0%, rgba(255,75,15,0) 100%)' },
   { x:201, y:415, w:164, h:178, blur:28,  blend:'color',   bg:'radial-gradient(circle, rgb(255,185,130) 0%, rgba(255,150,70,0.65) 100%)' },
@@ -274,8 +272,8 @@ const ZAKATY: CL[] = [
   { x:230, y:454, w:131, h:142, blur:44,  blend:'luminosity',  bg:'radial-gradient(circle, rgb(255,130,65) 0%, rgba(255,195,110,0.65) 100%)' },
   { x:264, y:474, w:66,  h:74,  blur:33,  blend:'lighten', op:0.5, bg:'rgb(255,215,155)' },
   // Group 2 core — orange-gold + warm white
-  { x:220, y:465, w:130, h:130, blur:24,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,200,100) 0%, rgba(255,75,10,0) 100%)' },
-  { x:252, y:497, w:65,  h:65,  blur:11,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,248,235) 0%, rgba(255,225,175,0) 100%)' },
+  { x:240, y:485, w:91,  h:91,  blur:17,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,200,100) 0%, rgba(255,75,10,0) 100%)' },
+  { x:262, y:507, w:46,  h:46,  blur:8,   blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,248,235) 0%, rgba(255,225,175,0) 100%)' },
   // Group 3 (left) — deep violet, single hue
   { x:-13, y:273, w:255, h:287, blur:95,  blend:'lighten', op:0.35, bg:'radial-gradient(circle, rgb(80,15,120) 0%, rgb(20,5,40) 100%)' },
   { x:77,  y:367, w:121, h:139, blur:33,  blend:'color',   bg:'radial-gradient(circle, rgb(130,30,180) 0%, rgba(80,15,130,0.65) 100%)' },
@@ -286,8 +284,8 @@ const ZAKATY: CL[] = [
   { x:67,  y:367, w:97,  h:111, blur:52,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(140,50,200) 0%, rgba(200,160,255,0.65) 100%)' },
   { x:87,  y:382, w:66,  h:74,  blur:44,  blend:'lighten', op:0.5, bg:'rgb(230,100,210)' },
   // Group 3 core — bright violet-pink + near-white rose
-  { x:55,  y:358, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(235,140,230) 0%, rgba(100,20,180,0) 100%)' },
-  { x:87,  y:390, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,215,245) 0%, rgba(220,200,255,0) 100%)' },
+  { x:75,  y:378, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(235,140,230) 0%, rgba(100,20,180,0) 100%)' },
+  { x:97,  y:400, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,215,245) 0%, rgba(220,200,255,0) 100%)' },
 ];
 
 // Рассвет — same positions/structure as KRASNY, tender dawn palette desaturated ×0.6, 1 color per source
@@ -301,8 +299,8 @@ const RASSVET: CL[] = [
   { x:182, y:211, w:131, h:142, blur:59,  blend:'color-dodge', op:0.5, bg:'radial-gradient(circle, rgb(239,215,113) 0%, rgba(250,246,208,0.65) 100%)' },
   { x:174, y:186, w:131, h:142, blur:59,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(241,222,166) 0%, rgba(249,241,204,0.65) 100%)' },
   // Group 1 core — muted warm gold + near-white cream
-  { x:163, y:188, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(252,250,216) 0%, rgba(240,224,132,0) 100%)' },
-  { x:195, y:220, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,255,248) 0%, rgba(250,245,225,0) 100%)' },
+  { x:183, y:208, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(252,250,216) 0%, rgba(240,224,132,0) 100%)' },
+  { x:205, y:230, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,255,248) 0%, rgba(250,245,225,0) 100%)' },
   // Group 2 (bottom-right) — muted rose-peach horizon
   { x:244, y:434, w:140, h:155, blur:38,  bg:'radial-gradient(circle, rgb(226,168,144) 0%, rgba(212,124,100,0) 100%)' },
   { x:201, y:415, w:164, h:178, blur:28,  blend:'color',   bg:'radial-gradient(circle, rgb(240,210,198) 0%, rgba(232,186,172,0.65) 100%)' },
@@ -313,8 +311,8 @@ const RASSVET: CL[] = [
   { x:230, y:454, w:131, h:142, blur:44,  blend:'luminosity',  bg:'radial-gradient(circle, rgb(227,172,151) 0%, rgba(237,201,185,0.65) 100%)' },
   { x:264, y:474, w:66,  h:74,  blur:33,  blend:'lighten', op:0.5, bg:'rgb(249,237,228)' },
   // Group 2 core — muted blush + near-white
-  { x:220, y:465, w:130, h:130, blur:24,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(247,230,218) 0%, rgba(218,143,119,0) 100%)' },
-  { x:252, y:497, w:65,  h:65,  blur:11,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(255,250,246) 0%, rgba(246,228,219,0) 100%)' },
+  { x:240, y:485, w:91,  h:91,  blur:17,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(247,230,218) 0%, rgba(218,143,119,0) 100%)' },
+  { x:262, y:507, w:46,  h:46,  blur:8,   blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(255,250,246) 0%, rgba(246,228,219,0) 100%)' },
   // Group 3 (left) — muted slate-blue sky
   { x:-13, y:273, w:255, h:287, blur:95,  blend:'lighten', op:0.28, bg:'radial-gradient(circle, rgb(122,163,209) 0%, rgb(32,47,75) 100%)' },
   { x:77,  y:367, w:121, h:139, blur:33,  blend:'color',   bg:'radial-gradient(circle, rgb(173,206,233) 0%, rgba(139,177,215,0.65) 100%)' },
@@ -325,8 +323,8 @@ const RASSVET: CL[] = [
   { x:67,  y:367, w:97,  h:111, blur:52,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(149,187,223) 0%, rgba(205,225,241,0.65) 100%)' },
   { x:87,  y:382, w:66,  h:74,  blur:44,  blend:'lighten', op:0.5, bg:'rgb(197,219,239)' },
   // Group 3 core — muted sky blue + near-white cool
-  { x:55,  y:358, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(214,230,244) 0%, rgba(112,157,207,0) 100%)' },
-  { x:87,  y:390, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(242,250,255) 0%, rgba(222,236,246,0) 100%)' },
+  { x:75,  y:378, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(214,230,244) 0%, rgba(112,157,207,0) 100%)' },
+  { x:97,  y:400, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(242,250,255) 0%, rgba(222,236,246,0) 100%)' },
 ];
 
 // Лес — same positions/structure as KRASNY; Group 1 emerald, Group 2 forest, Group 3 grassy yellow-green
@@ -340,8 +338,8 @@ const LES: CL[] = [
   { x:182, y:211, w:131, h:142, blur:59,  blend:'color-dodge', op:0.5, bg:'radial-gradient(circle, rgb(10,190,70) 0%, rgba(178,255,205,0.65) 100%)' },
   { x:174, y:186, w:131, h:142, blur:59,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(30,200,85) 0%, rgba(178,255,205,0.65) 100%)' },
   // Group 1 core — emerald-white, slightly dimmed
-  { x:163, y:188, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(165,248,195) 0%, rgba(10,190,70,0) 100%)' },
-  { x:195, y:220, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(218,252,228) 0%, rgba(165,245,195,0) 100%)' },
+  { x:183, y:208, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(165,248,195) 0%, rgba(10,190,70,0) 100%)' },
+  { x:205, y:230, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(218,252,228) 0%, rgba(165,245,195,0) 100%)' },
   // Group 2 (bottom-right) — dark grassy green, muted
   { x:244, y:434, w:140, h:155, blur:38,  bg:'radial-gradient(circle, rgb(38,120,28) 0%, rgba(20,88,12,0) 100%)' },
   { x:201, y:415, w:164, h:178, blur:28,  blend:'color',   bg:'radial-gradient(circle, rgb(120,195,100) 0%, rgba(95,168,75,0.65) 100%)' },
@@ -352,8 +350,8 @@ const LES: CL[] = [
   { x:230, y:454, w:131, h:142, blur:44,  blend:'luminosity',  bg:'radial-gradient(circle, rgb(55,135,38) 0%, rgba(120,195,105,0.65) 100%)' },
   { x:264, y:474, w:66,  h:74,  blur:33,  blend:'lighten', op:0.5, bg:'rgb(130,195,115)' },
   // Group 2 core — dark grassy, 50% dimmer than Group 1
-  { x:220, y:465, w:130, h:130, blur:24,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(108,175,90) 0%, rgba(32,110,22,0) 100%)' },
-  { x:252, y:497, w:65,  h:65,  blur:11,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(162,215,148) 0%, rgba(108,175,90,0) 100%)' },
+  { x:240, y:485, w:91,  h:91,  blur:17,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(108,175,90) 0%, rgba(32,110,22,0) 100%)' },
+  { x:262, y:507, w:46,  h:46,  blur:8,   blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(162,215,148) 0%, rgba(108,175,90,0) 100%)' },
   // Group 3 (left) — natural grassy yellow-green
   { x:-13, y:273, w:255, h:287, blur:95,  blend:'lighten', op:0.35, bg:'radial-gradient(circle, rgb(105,185,35) 0%, rgb(22,48,8) 100%)' },
   { x:77,  y:367, w:121, h:139, blur:33,  blend:'color',   bg:'radial-gradient(circle, rgb(165,228,80) 0%, rgba(135,205,42,0.65) 100%)' },
@@ -364,8 +362,8 @@ const LES: CL[] = [
   { x:67,  y:367, w:97,  h:111, blur:52,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(128,198,45) 0%, rgba(200,232,145,0.65) 100%)' },
   { x:87,  y:382, w:66,  h:74,  blur:44,  blend:'lighten', op:0.5, bg:'rgb(195,240,120)' },
   // Group 3 core — grassy yellow-white, slightly dimmed
-  { x:55,  y:358, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(205,242,140) 0%, rgba(100,185,30,0) 100%)' },
-  { x:87,  y:390, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(235,248,205) 0%, rgba(215,240,172,0) 100%)' },
+  { x:75,  y:378, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(205,242,140) 0%, rgba(100,185,30,0) 100%)' },
+  { x:97,  y:400, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(235,248,205) 0%, rgba(215,240,172,0) 100%)' },
 ];
 
 // Сияние — same positions/structure as KRASNY, vivid aurora palette, slightly dimmer cores
@@ -379,8 +377,8 @@ const SIYANIE: CL[] = [
   { x:182, y:211, w:131, h:142, blur:59,  blend:'color-dodge', op:0.5, bg:'radial-gradient(circle, rgb(0,195,212) 0%, rgba(178,250,255,0.65) 100%)' },
   { x:174, y:186, w:131, h:142, blur:59,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(25,205,218) 0%, rgba(178,250,255,0.65) 100%)' },
   // Group 1 core — warm cyan-white, slightly dimmed
-  { x:163, y:188, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(168,238,248) 0%, rgba(0,195,212,0) 100%)' },
-  { x:195, y:220, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(218,248,252) 0%, rgba(168,240,250,0) 100%)' },
+  { x:183, y:208, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(168,238,248) 0%, rgba(0,195,212,0) 100%)' },
+  { x:205, y:230, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(218,248,252) 0%, rgba(168,240,250,0) 100%)' },
   // Group 2 (bottom-right) — vivid blue-violet
   { x:244, y:434, w:140, h:155, blur:38,  bg:'radial-gradient(circle, rgb(80,80,242) 0%, rgba(55,45,218,0) 100%)' },
   { x:201, y:415, w:164, h:178, blur:28,  blend:'color',   bg:'radial-gradient(circle, rgb(185,185,255) 0%, rgba(165,155,252,0.65) 100%)' },
@@ -391,8 +389,8 @@ const SIYANIE: CL[] = [
   { x:230, y:454, w:131, h:142, blur:44,  blend:'luminosity',  bg:'radial-gradient(circle, rgb(110,110,248) 0%, rgba(195,195,255,0.65) 100%)' },
   { x:264, y:474, w:66,  h:74,  blur:33,  blend:'lighten', op:0.5, bg:'rgb(215,215,255)' },
   // Group 2 core — blue-white, slightly dimmed
-  { x:220, y:465, w:130, h:130, blur:24,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(185,185,255) 0%, rgba(70,70,240,0) 100%)' },
-  { x:252, y:497, w:65,  h:65,  blur:11,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(222,222,255) 0%, rgba(205,205,255,0) 100%)' },
+  { x:240, y:485, w:91,  h:91,  blur:17,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(185,185,255) 0%, rgba(70,70,240,0) 100%)' },
+  { x:262, y:507, w:46,  h:46,  blur:8,   blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(222,222,255) 0%, rgba(205,205,255,0) 100%)' },
   // Group 3 (left) — vivid deep violet
   { x:-13, y:273, w:255, h:287, blur:95,  blend:'lighten', op:0.35, bg:'radial-gradient(circle, rgb(115,20,230) 0%, rgb(28,5,75) 100%)' },
   { x:77,  y:367, w:121, h:139, blur:33,  blend:'color',   bg:'radial-gradient(circle, rgb(155,40,245) 0%, rgba(108,12,220,0.65) 100%)' },
@@ -403,8 +401,8 @@ const SIYANIE: CL[] = [
   { x:67,  y:367, w:97,  h:111, blur:52,  blend:'luminosity',  op:0.5, bg:'radial-gradient(circle, rgb(148,38,238) 0%, rgba(215,185,255,0.65) 100%)' },
   { x:87,  y:382, w:66,  h:74,  blur:44,  blend:'lighten', op:0.5, bg:'rgb(192,155,252)' },
   // Group 3 core — violet-white, slightly dimmed
-  { x:55,  y:358, w:130, h:130, blur:32,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(200,165,252) 0%, rgba(108,18,230,0) 100%)' },
-  { x:87,  y:390, w:65,  h:65,  blur:15,  blend:'screen', op:0.5, bg:'radial-gradient(circle, rgb(230,220,255) 0%, rgba(218,202,255,0) 100%)' },
+  { x:75,  y:378, w:91,  h:91,  blur:22,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(200,165,252) 0%, rgba(108,18,230,0) 100%)' },
+  { x:97,  y:400, w:46,  h:46,  blur:11,  blend:'screen', op:0.4, bg:'radial-gradient(circle, rgb(230,220,255) 0%, rgba(218,202,255,0) 100%)' },
 ];
 
 // ── Card blob palette ─────────────────────────────────────────────────────────
@@ -447,10 +445,10 @@ const SCENE_CARD_PALETTES: [CardPalette, CardPalette, CardPalette][] = [
   ],
 ];
 
-function CardBlobs({ palette }: { palette: CardPalette }) {
+function CardBlobs({ palette, brightness = 1 }: { palette: CardPalette; brightness?: number }) {
   const p = palette;
   return (
-    <div style={{ position: 'absolute', inset: 0, filter: 'saturate(1.3) contrast(1.1)', transform: 'translateY(-32px)' }}>
+    <div style={{ position: 'absolute', inset: 0, filter: `saturate(1.3) contrast(1.1) brightness(${brightness.toFixed(2)})`, transform: 'translateY(-32px)' }}>
       {/* Outer fog — very large, centered, extends well above card */}
       <div style={{
         position: 'absolute',
@@ -550,8 +548,8 @@ function buildDetailLayers(p: CardPalette): CL[] {
     { x:55,  y:198, w:268, h:296, blur:85,  blend:'lighten',     bg:p.fog },
     { x:116, y:226, w:167, h:181, blur:83,  blend:'color-dodge', op:0.5, bg:rad(p.glow, a(p.core, 0.65)) },
     { x:126, y:258, w:167, h:181, blur:83,  blend:'luminosity',  op:0.5, bg:rad(p.ab2, a(p.core, 0.65)) },
-    { x:140, y:220, w:130, h:130, blur:32,  blend:'screen',      op:0.5, bg:rad(p.core, a(p.glow, 0)) },
-    { x:173, y:253, w:65,  h:65,  blur:15,  blend:'screen',      op:0.5, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,250,235,0) 100%)' },
+    { x:160, y:240, w:91,  h:91,  blur:22,  blend:'screen',      op:0.4, bg:rad(p.core, a(p.glow, 0)) },
+    { x:183, y:263, w:46,  h:46,  blur:11,  blend:'screen',      op:0.4, bg:'radial-gradient(circle, rgb(255,252,242) 0%, rgba(255,250,235,0) 100%)' },
   ];
 }
 
@@ -568,6 +566,32 @@ function getSceneLayers(idx: number): CL[] {
 // Arc carousel
 const ARC_R    = 240;   // arc radius px
 const ARC_STEP = 20;    // degrees per sphere
+
+// Custom scene inserted into the carousel when photo style is created
+// Gradient for the custom sphere ball — yellow/pink on red structure + Сияние curl
+const CUSTOM_SPHERE_GRADIENT = [
+  "radial-gradient(ellipse 42% 30% at 22% 20%, rgb(255,218,52) 0%, rgba(255,190,40,0.55) 45%, transparent 72%)",
+  "radial-gradient(ellipse at 32% 48%, rgb(255,175,78) 0%, transparent 42%)",
+  "radial-gradient(ellipse at 52% 52%, rgb(238,65,140) 0%, transparent 38%)",
+  "radial-gradient(ellipse 68% 20% at 36% 42%, rgba(255,198,78,0.65) 0%, rgba(255,158,55,0.18) 62%, transparent 85%)",
+  "radial-gradient(ellipse at 80% 18%, rgb(158,18,108) 0%, transparent 44%)",
+  "radial-gradient(ellipse 28% 55% at 90% 52%, rgb(108,8,78) 0%, transparent 60%)",
+  "radial-gradient(ellipse at 18% 78%, rgb(218,148,38) 0%, transparent 42%)",
+  "radial-gradient(ellipse at 78% 80%, rgb(98,8,68) 0%, transparent 44%)",
+  "rgb(68,6,42)",
+].join(', ');
+
+// Custom scene — inserted into the carousel after photo style is created
+const CUSTOM_SCENE: SceneDef = {
+  name: 'Мой стиль',
+  blobs: [
+    { halo: [255,80,160] as RGB, rim: [255,150,60] as RGB, bodyOuter: [220,100,180] as RGB, bodyInner: [255,180,80] as RGB, core: [255,248,230] as RGB },
+    { halo: [255,80,160] as RGB, rim: [255,150,60] as RGB, bodyOuter: [220,100,180] as RGB, bodyInner: [255,180,80] as RGB, core: [255,248,230] as RGB },
+    { halo: [130,20,180] as RGB, rim: [200,60,220] as RGB, bodyOuter: [160,40,200] as RGB, bodyInner: [190,70,220] as RGB, core: [230,190,255] as RGB },
+  ],
+  sphere: { gradient: CUSTOM_SPHERE_GRADIENT, glow: '0 0 18px 6px rgba(255,180,60,.13)' },
+  panelColor: [22, 7, 15] as RGB,
+};
 
 // ── Style picker sheet ────────────────────────────────────────────────────────
 
@@ -670,14 +694,19 @@ function GlassSphere({ src, gradient, size, imgScale = 1, imgOffsetX = 0, imgOff
   );
 }
 
-function StylePickerSheet({ onClose }: { onClose: () => void }) {
+function StylePickerSheet({ onClose, onFromPhoto, forcedExit = false }: { onClose: () => void; onFromPhoto: () => void; forcedExit?: boolean }) {
   const [entered, setEntered] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
     return () => cancelAnimationFrame(id);
   }, []);
+
+  useEffect(() => {
+    if (forcedExit && !exiting) { setExiting(true); setTimeout(onClose, 340); }
+  }, [forcedExit]);
 
   const handleClose = () => {
     setExiting(true);
@@ -743,30 +772,43 @@ function StylePickerSheet({ onClose }: { onClose: () => void }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 43, paddingLeft: 52, paddingRight: 16 }}>
         {STYLE_ITEMS.map((item, i) => {
           const delay = `${80 + i * 110}ms`;
+          const hov = hoveredIdx === i && i === 0;
+          const handleClick = i === 0 ? onFromPhoto : undefined;
           return (
             <div
               key={i}
+              onClick={handleClick}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 24,
                 opacity:    isIn ? 1 : 0,
                 transform:  isIn ? 'translateY(0px)' : 'translateY(44px)',
                 filter:     isIn ? 'blur(0px)' : 'blur(12px)',
                 transition: `opacity 0.42s ${ease} ${delay}, transform 0.42s ${ease} ${delay}, filter 0.38s ${ease} ${delay}`,
-                cursor: 'pointer',
+                cursor: i === 0 ? 'pointer' : 'default',
               }}
             >
-              <div style={{ position: 'relative', flexShrink: 0, width: 86, height: 86, filter: 'saturate(1.15) contrast(1.05)' }}>
-                {/* Glow 1 — большое размытие, 20% */}
+              <div style={{
+                position: 'relative', flexShrink: 0, width: 86, height: 86,
+                filter: hov
+                  ? 'saturate(1.30) contrast(1.05) brightness(1.10)'
+                  : 'saturate(1.15) contrast(1.05)',
+                transition: 'filter 0.22s ease',
+              }}>
+                {/* Glow 1 — большое размытие */}
                 <div style={{
-                  position: 'absolute', inset: -32, borderRadius: '50%', pointerEvents: 'none',
+                  position: 'absolute', inset: hov ? -34 : -32, borderRadius: '50%', pointerEvents: 'none',
                   background: item.src ? `url(${item.src}) center/cover no-repeat` : item.gradient,
-                  filter: 'blur(28px)', opacity: 0.14,
+                  filter: 'blur(28px)', opacity: hov ? 0.16 : 0.14,
+                  transition: 'inset 0.22s ease, opacity 0.22s ease',
                 }} />
-                {/* Glow 2 — среднее размытие, 50% */}
+                {/* Glow 2 — среднее размытие */}
                 <div style={{
-                  position: 'absolute', inset: -14, borderRadius: '50%', pointerEvents: 'none',
+                  position: 'absolute', inset: hov ? -15 : -14, borderRadius: '50%', pointerEvents: 'none',
                   background: item.src ? `url(${item.src}) center/cover no-repeat` : item.gradient,
-                  filter: 'blur(10px)', opacity: 0.26,
+                  filter: 'blur(10px)', opacity: hov ? 0.28 : 0.26,
+                  transition: 'inset 0.22s ease, opacity 0.22s ease',
                 }} />
                 <GlassSphere src={item.src} gradient={item.gradient} size={86} imgScale={item.imgScale} imgOffsetX={item.imgOffsetX} imgOffsetY={item.imgOffsetY} glassAccents={item.glassAccents} />
               </div>
@@ -906,8 +948,8 @@ function BlobHeat({ sceneIdx }: { sceneIdx: number }) {
         // 1 when within HEAT_FULL px, linear falloff to 0 at HEAT_ZERO px
         const target = Math.max(0, 1 - Math.max(0, dist - HEAT_FULL) / (HEAT_ZERO - HEAT_FULL));
 
-        // Slow rise (~2s to warm up), even slower fall (~5s to cool down)
-        const speed = heat.current[i] < target ? 0.007 : 0.003;
+        // Rise ~0.5s, fall ~2s
+        const speed = heat.current[i] < target ? 0.030 : 0.010;
         heat.current[i] += (target - heat.current[i]) * speed;
 
         const div = glowRefs.current[i];
@@ -924,7 +966,7 @@ function BlobHeat({ sceneIdx }: { sceneIdx: number }) {
         const lg = Math.round(g + (255 - g) * 0.60);
         const lb = Math.round(b + (255 - b) * 0.60);
 
-        div.style.opacity  = (h * 0.75).toFixed(3);
+        div.style.opacity  = (h * 0.90).toFixed(3);
         div.style.background =
           `radial-gradient(circle, rgba(${lr},${lg},${lb},0.55) 0%, rgba(${r},${g},${b},0.20) 50%, transparent 100%)`;
       });
@@ -969,23 +1011,106 @@ function BlobHeat({ sceneIdx }: { sceneIdx: number }) {
 
 // ── CSS blob renderer ─────────────────────────────────────────────────────────
 
-function CSSBlobs({ sceneIdx }: { sceneIdx: number }) {
+// Layer group splits: G0=9 layers (blobGroup 2, top), G1=10 (blobGroup 1, right), G2=10 (blobGroup 0, left)
+const BLOB_LAYER_SPLIT: [number, number] = [9, 19];
+// For each layer group: which blobGroup it belongs to, and its center in layer-space
+const LAYER_META: { blobGroup: 0|1|2; ox: number; oy: number }[] = [
+  { blobGroup: 2, ox: 228, oy: 253 },
+  { blobGroup: 1, ox: 285, oy: 530 },
+  { blobGroup: 0, ox: 120, oy: 423 },
+];
+
+function CSSBlobs({ sceneIdx, groupBrightness }: { sceneIdx: number; groupBrightness: [number, number, number] }) {
   const blobFilter = sceneIdx === 3
     ? 'saturate(1.04) contrast(1.1)'
     : 'saturate(1.3) contrast(1.1)';
+
+  const allLayers = getSceneLayers(sceneIdx);
+  const groups = [
+    allLayers.slice(0, BLOB_LAYER_SPLIT[0]),
+    allLayers.slice(BLOB_LAYER_SPLIT[0], BLOB_LAYER_SPLIT[1]),
+    allLayers.slice(BLOB_LAYER_SPLIT[1]),
+  ];
+
+  const hoverRef           = useRef([0, 0, 0]);
+  const groupRefs          = useRef<(HTMLDivElement | null)[]>([null, null, null]);
+  const containerRef       = useRef<HTMLDivElement>(null);
+  const cursorRef          = useRef({ x: -9999, y: -9999 });
+  const groupBrightnessRef = useRef(groupBrightness);
+  groupBrightnessRef.current = groupBrightness;
+
+  useEffect(() => {
+    let rafId = 0;
+    const RADIUS = 130;
+    const RISE   = 0.08;   // ~0.2 s to full
+    const FALL   = 0.016;  // ~1.0 s to clear
+
+    const onMove = (e: MouseEvent) => {
+      const r = containerRef.current?.parentElement?.getBoundingClientRect();
+      if (!r) return;
+      cursorRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const onLeave = () => { cursorRef.current = { x: -9999, y: -9999 }; };
+
+    const tick = () => {
+      LAYER_META.forEach(({ blobGroup }, gi) => {
+        const [cx, cy] = BLOB_CORE_CENTERS[blobGroup];
+        const dist  = Math.hypot(cursorRef.current.x - cx, cursorRef.current.y - cy);
+        const tgt   = dist < RADIUS ? 1 : 0;
+        const cur   = hoverRef.current[gi];
+        hoverRef.current[gi] = cur + (tgt - cur) * (tgt > cur ? RISE : FALL);
+
+        const div = groupRefs.current[gi];
+        if (!div) return;
+        const h    = hoverRef.current[gi];
+        const baseBr = groupBrightnessRef.current[blobGroup];
+        const brStr  = baseBr < 0.999 ? `brightness(${baseBr.toFixed(3)}) ` : '';
+        if (h < 0.002) { div.style.filter = brStr.trim(); div.style.transform = ''; return; }
+        div.style.filter    = `${brStr}saturate(${(1 + 0.18 * h).toFixed(3)}) brightness(${(1 + 0.07 * h).toFixed(3)})`;
+        div.style.transform = `scale(${(1 + 0.08 * h).toFixed(4)})`;
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseleave', onLeave);
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseleave', onLeave);
+      cancelAnimationFrame(rafId);
+    };
+  }, []);
+
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: blobFilter, transform: 'translateY(-40px) scale(0.9)', transformOrigin: 'center center' }}>
-      {getSceneLayers(sceneIdx).map((l, i) => (
-        <div key={i} style={{
-          position: 'absolute',
-          left: l.x, top: l.y, width: l.w, height: l.h,
-          borderRadius: '50%',
-          filter: `blur(${l.blur}px)`,
-          mixBlendMode: (l.blend ?? 'normal') as React.CSSProperties['mixBlendMode'],
-          opacity: l.op ?? 1,
-          background: l.bg,
-          pointerEvents: 'none',
-        }} />
+    <div
+      ref={containerRef}
+      style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: blobFilter, transform: 'translateY(-40px) scale(0.9)', transformOrigin: 'center center' }}
+    >
+      {groups.map((layers, gi) => (
+        <div
+          key={gi}
+          ref={el => { groupRefs.current[gi] = el; }}
+          style={{
+            position: 'absolute', inset: 0,
+            transformOrigin: `${LAYER_META[gi].ox}px ${LAYER_META[gi].oy}px`,
+            willChange: 'transform, filter',
+            pointerEvents: 'none',
+          }}
+        >
+          {layers.map((l, i) => (
+            <div key={i} style={{
+              position: 'absolute',
+              left: l.x, top: l.y, width: l.w, height: l.h,
+              borderRadius: '50%',
+              filter: `blur(${l.blur}px)`,
+              mixBlendMode: (l.blend ?? 'normal') as React.CSSProperties['mixBlendMode'],
+              opacity: l.op ?? 1,
+              background: l.bg,
+              pointerEvents: 'none',
+            }} />
+          ))}
+        </div>
       ))}
     </div>
   );
@@ -1027,12 +1152,13 @@ function hueToPalette(h: number): CardPalette {
 const DETAIL_BLOB_CENTER: [number, number] = [205, 285];
 
 function SourceDetailScreen({
-  light, sceneIdx, onClose, onSave,
+  light, sceneIdx, onClose, onSave, fromCardRect,
 }: {
   light: LightSource;
   sceneIdx: number;
   onClose: () => void;
   onSave: (updates: SceneLightSettings) => void;
+  fromCardRect?: DOMRect;
 }) {
   const [phase, setPhase] = useState<'entering' | 'open' | 'exiting'>('entering');
 
@@ -1046,7 +1172,7 @@ function SourceDetailScreen({
 
   const handleClose = () => {
     setPhase('exiting');
-    setTimeout(onClose, 620);
+    setTimeout(onClose, fromCardRect ? 260 : 620);
   };
 
   const scenePalette = (SCENE_CARD_PALETTES[sceneIdx] ?? SCENE_CARD_PALETTES[0])[light.blobGroup];
@@ -1113,11 +1239,20 @@ function SourceDetailScreen({
   const EASE   = 'cubic-bezier(0.32, 0.72, 0, 1)';
   const SMOOTH = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
-  const blobTransform = phase !== 'open' ? `translate(${dx}px, ${dy}px) scale(0.38)` : 'none';
-  const blobTransition = phase === 'open'
-    ? `transform 0.78s ${SMOOTH}`
+  // Blob fly-in only when opening from main screen (not from card)
+  const blobTransform = fromCardRect
+    ? (isOpen ? 'none' : 'scale(0.94)')
+    : (phase === 'open' ? 'none' : `translate(${dx}px, ${dy}px) scale(0.38)`);
+  const blobTransition = fromCardRect
+    ? (phase === 'open' ? `transform 0.44s ${SMOOTH}` : phase === 'exiting' ? `transform 0.22s ${EASE}` : 'none')
+    : (phase === 'open' ? `transform 0.78s ${SMOOTH}` : phase === 'exiting' ? `transform 0.55s ${EASE}` : 'none');
+
+  // Container: simple opacity fade — no position/scale transform so AppBar + grabber stay fixed
+  const containerOpacity   = isOpen ? 1 : 0;
+  const containerTransition = phase === 'open'
+    ? `opacity 0.28s ${SMOOTH}`
     : phase === 'exiting'
-      ? `transform 0.55s ${EASE}`
+      ? `opacity 0.20s ${EASE}`
       : 'none';
 
   // Brightness-driven blob visuals
@@ -1126,7 +1261,7 @@ function SourceDetailScreen({
   const tLow  = Math.max(0, Math.min(1, brightness / DEFAULT_B));
   const tHigh = Math.max(0, Math.min(1, (brightness - DEFAULT_B) / (1 - DEFAULT_B)));
   const satMul = lerp(0.05, 1.6, saturation);
-  const blobFilter = `saturate(${lerp(0, satMul, tLow).toFixed(2)}) contrast(${lerp(0.65, 1.12, tLow).toFixed(2)}) brightness(${lerp(0.20, 1.0, tLow).toFixed(2)})`;
+  const blobFilter = `saturate(${satMul.toFixed(2)}) contrast(${lerp(0.65, 1.12, tLow).toFixed(2)}) brightness(${lerp(0.20, 1.0, tLow).toFixed(2)})`;
   const blobScale  = brightness <= DEFAULT_B ? lerp(0.50, 1.0, tLow) : lerp(1.0, 1.20, tHigh);
 
   // Arc geometry — ARC_Y tracks the blob's gradient boundary
@@ -1157,10 +1292,10 @@ function SourceDetailScreen({
   return (
     <div
       style={{
-        position: 'absolute', inset: 0, zIndex: 30, overflow: 'hidden',
+        position: 'absolute', inset: 0, zIndex: fromCardRect ? 45 : 30, overflow: 'hidden',
         background: 'linear-gradient(to bottom, rgb(23,22,28) 0%, rgb(31,12,15) 100%)',
-        opacity: isOpen ? 1 : 0,
-        transition: phase === 'exiting' ? `opacity 0.55s ${EASE}` : `opacity 0.68s ${SMOOTH}`,
+        opacity: containerOpacity,
+        transition: containerTransition,
       }}
       onPointerDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
@@ -1232,9 +1367,6 @@ function SourceDetailScreen({
       {/* Nav bar */}
       <div style={{
         position: 'absolute', top: 65, left: 0, right: 0, height: 44, zIndex: 20,
-        opacity: isOpen ? 1 : 0,
-        transform: isOpen ? 'none' : 'translateY(10px)',
-        transition: `opacity 0.38s ${EASE} 0.10s, transform 0.38s ${EASE} 0.10s`,
         pointerEvents: isOpen ? 'auto' : 'none',
       }}>
         {/* Back */}
@@ -1402,8 +1534,7 @@ function SourceDetailScreen({
       <div style={{
         position: 'absolute', left: 24, right: 24, bottom: 72, zIndex: 10,
         opacity: isOpen ? 1 : 0,
-        transform: isOpen ? 'none' : 'translateY(14px)',
-        transition: `opacity 0.40s ${EASE} 0.20s, transform 0.40s ${EASE} 0.20s`,
+        transition: `opacity 0.36s ${EASE} 0.14s`,
       }}>
         <div
           ref={stripRef}
@@ -1482,14 +1613,28 @@ export default function Home() {
   const [logPos, setLogPos] = useState(0);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [showFromPhoto, setShowFromPhoto] = useState(false);
+  const [stylePickerForceExit, setStylePickerForceExit] = useState(false);
+  const [blinkActive, setBlinkActive] = useState(false);
+  const [blinkVisible, setBlinkVisible] = useState(false);
+  const [extraScenes, setExtraScenes] = useState<SceneDef[]>([]);
+  const [blobsColorized, setBlobsColorized] = useState(false);
   const [lights, setLights] = useState<LightSource[]>(DEFAULT_LIGHTS);
   const [detailLight, setDetailLight] = useState<LightSource | null>(null);
+  const detailFromCardRef = useRef<DOMRect | null>(null);
   const [flares, setFlares] = useState<FlareState[]>([]);
   const flareIdRef = useRef(0);
   const toggleLight = useCallback((id: number) => {
     setLights(prev => prev.map(l => l.id === id ? { ...l, on: !l.on } : l));
   }, []);
-  const activeScene = posToIdx(logPos);
+  const allScenes = [...SCENES, ...extraScenes];
+  const allN = allScenes.length;
+  const allNRef = useRef(allN);
+  allNRef.current = allN;
+  const posToIdxAll = (p: number) => ((p % allN) + allN) % allN;
+  const activeScene = posToIdxAll(logPos);
+  const safeSceneIdx = Math.min(activeScene, SCENES.length - 1);
 
   const saveLight = useCallback((id: number, sceneIdx: number, updates: SceneLightSettings) => {
     setLights(prev => prev.map(l => l.id === id ? {
@@ -1501,6 +1646,40 @@ export default function Home() {
 
   const openDetail = useCallback((light: LightSource) => {
     setDetailLight(light);
+  }, []);
+
+  const handleStyleDone = useCallback(() => {
+    setStylePickerForceExit(true);
+    setBlobsColorized(true);
+    setTimeout(() => {
+      setExtraScenes([CUSTOM_SCENE]);
+      // navigate to the new scene after state settles
+      setTimeout(() => {
+        const n = allNRef.current; // will be SCENES.length + 1 after setExtraScenes
+        const newIdx = n - 1;
+        const cur = logPosRef.current;
+        const curIdx = ((cur % n) + n) % n;
+        let delta = newIdx - curIdx;
+        if (delta > n / 2) delta -= n;
+        if (delta < -n / 2) delta += n;
+        logPosRef.current = cur + delta;
+        setLogPos(cur + delta);
+      }, 60);
+    }, 440);
+  }, []);
+
+  const handleScheduleConfirm = useCallback(() => {
+    // Phase 1 (0–800ms): overlay fades in
+    setBlinkActive(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => setBlinkVisible(true)));
+    // Phase 2 (800ms): close sheet behind darkness, start fade-out
+    setTimeout(() => {
+      setShowSchedule(false);
+      setShowOverview(false);
+      setBlinkVisible(false);
+      // Phase 2 end (800+800ms): unmount overlay
+      setTimeout(() => setBlinkActive(false), 800);
+    }, 800);
   }, []);
 
   // Per-blobGroup custom hue + saturation for current scene
@@ -1521,6 +1700,31 @@ export default function Home() {
     }
     return acc;
   }, [null, null, null]);
+
+  const groupBrightness = ([0, 1, 2] as const).map(group => {
+    const onLights = lights.filter(l => l.on && l.blobGroup === group);
+    if (onLights.length === 0) return 1.0;
+    const avg = onLights.reduce((sum, l) => {
+      const br = l.sceneSettings?.[activeScene]?.brightness ?? l.brightness;
+      return sum + br;
+    }, 0) / onLights.length;
+    return avg / 100;
+  }) as [number, number, number];
+
+  // All custom colors per scene (one per blobGroup, brightest source wins) — for sphere highlights
+  const sceneCustomData: { hue: number; saturation: number }[][] = Array.from({ length: allN }, (_, sceneIdx) => {
+    const byGroup = new Map<number, { hue: number; saturation: number }>();
+    [...lights]
+      .sort((a, b) => b.brightness - a.brightness)
+      .filter(l => l.on && l.sceneSettings?.[sceneIdx]?.customHue !== undefined)
+      .forEach(l => {
+        if (!byGroup.has(l.blobGroup)) {
+          const d = l.sceneSettings![sceneIdx]!;
+          byGroup.set(l.blobGroup, { hue: d.customHue, saturation: d.customSaturation ?? 72 });
+        }
+      });
+    return Array.from(byGroup.values());
+  });
 
   const handleBlobClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (showOverview || showStylePicker || detailLight !== null) return;
@@ -1569,25 +1773,26 @@ export default function Home() {
 
   const changeScene = useCallback((i: number) => {
     const current    = logPosRef.current;
-    const currentIdx = posToIdx(current);
+    const n          = allNRef.current;
+    const currentIdx = ((current % n) + n) % n;
     let delta = i - currentIdx;
-    if (delta >  N / 2) delta -= N;
-    if (delta < -N / 2) delta += N;
+    if (delta >  n / 2) delta -= n;
+    if (delta < -n / 2) delta += n;
     logPosRef.current = current + delta;
     setLogPos(current + delta);
   }, []);
 
   useEffect(() => {
-    const [r, g, b] = SCENES[activeScene].panelColor;
+    const [r, g, b] = (allScenes[activeScene] ?? SCENES[0]).panelColor;
     if (gradientRef.current)
       gradientRef.current.style.background =
         `linear-gradient(to bottom, rgba(${r},${g},${b},0) 0%, rgba(${r},${g},${b},0.95) 72.7%)`;
-  }, [activeScene]);
+  }, [activeScene, allScenes]);
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <div className="relative overflow-hidden" style={{ width: W, height: H, background: "#17171C", borderRadius: 65 }} onPointerDown={handleFlare} onClick={handleBlobClick}>
-        <CSSBlobs sceneIdx={activeScene} />
+        <CSSBlobs sceneIdx={safeSceneIdx} groupBrightness={groupBrightness} />
         {/* Custom hue overlays — tint each blob group when a light has been configured */}
         {groupCustomHues.map((customHue, group) => customHue === null ? null : (
           <div key={group} style={{
@@ -1603,7 +1808,39 @@ export default function Home() {
             zIndex: 2,
           }} />
         ))}
-        <BlobHeat sceneIdx={activeScene} />
+        <BlobHeat sceneIdx={safeSceneIdx} />
+        {/* Sphere-style color overlays — fade in permanently after photo style is created */}
+        {([
+          { group: 0, hue: 328, sat: 88 }, // pink  (left blob)
+          { group: 1, hue: 38,  sat: 95 }, // yellow-orange (bottom-right)
+          { group: 2, hue: 290, sat: 78 }, // purple (top)
+        ] as { group: number; hue: number; sat: number }[]).map(({ group, hue, sat }) => (
+          <div key={`sc-${group}`} style={{
+            position: 'absolute',
+            left: BLOB_CORE_CENTERS[group][0] - 200,
+            top:  BLOB_CORE_CENTERS[group][1] - 200,
+            width: 400, height: 400, borderRadius: '50%',
+            background: `hsl(${hue}, ${sat}%, 52%)`,
+            filter: 'blur(80px)',
+            mixBlendMode: 'color',
+            opacity: blobsColorized ? 0.88 : 0,
+            transition: 'opacity 1.8s ease',
+            pointerEvents: 'none',
+            zIndex: 2,
+          }} />
+        ))}
+        {/* Cursor:pointer hit zones over blob areas */}
+        {BLOB_CORE_CENTERS.map(([cx, cy], i) => (
+          <div key={`hit-${i}`} style={{
+            position: 'absolute',
+            left: cx - 110, top: cy - 110,
+            width: 220, height: 220,
+            borderRadius: '50%',
+            cursor: 'pointer',
+            pointerEvents: (showOverview || showStylePicker || detailLight !== null || showSchedule || showFromPhoto) ? 'none' : 'auto',
+            zIndex: 3,
+          }} />
+        ))}
         {/* Flares layer */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none' }}>
           {flares.map(f => (
@@ -1645,9 +1882,9 @@ export default function Home() {
             background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.10) 100%)',
           }} />
         </div>
-        <Controls onOverview={() => setShowOverview(true)} />
-        <BottomTray activeScene={activeScene} logPos={logPos} onSceneChange={changeScene} onNewStyle={() => setShowStylePicker(true)} />
-        {showStylePicker && <StylePickerSheet onClose={() => setShowStylePicker(false)} />}
+        <Controls onOverview={() => setShowOverview(true)} onSchedule={() => setShowSchedule(true)} />
+        <BottomTray activeScene={activeScene} logPos={logPos} onSceneChange={changeScene} onNewStyle={() => setShowStylePicker(true)} sceneCustomData={sceneCustomData} allScenes={allScenes} />
+        {showStylePicker && <StylePickerSheet onClose={() => { setShowStylePicker(false); setStylePickerForceExit(false); }} onFromPhoto={() => setShowFromPhoto(true)} forcedExit={stylePickerForceExit} />}
         {showStylePicker && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
             <StatusBar />
@@ -1658,7 +1895,7 @@ export default function Home() {
             <div style={{ width: 36, height: 5, borderRadius: 3, background: 'rgba(204,204,204,0.50)' }} />
           </div>
         )}
-        {showOverview && <OverviewSheet lights={lights} onToggle={toggleLight} onClose={() => setShowOverview(false)} onDetail={(l) => { setShowOverview(false); openDetail(l); }} activeScene={activeScene} />}
+        {showOverview && <OverviewSheet lights={lights} onToggle={toggleLight} onClose={() => setShowOverview(false)} onDetail={(l, rect) => { detailFromCardRef.current = rect; openDetail(l); }} activeScene={activeScene} />}
         {showOverview && (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
             <StatusBar />
@@ -1673,9 +1910,55 @@ export default function Home() {
           <SourceDetailScreen
             light={detailLight}
             sceneIdx={activeScene}
-            onClose={() => setDetailLight(null)}
-            onSave={(updates) => { saveLight(detailLight.id, activeScene, updates); setDetailLight(null); }}
+            fromCardRect={detailFromCardRef.current ?? undefined}
+            onClose={() => { setDetailLight(null); detailFromCardRef.current = null; }}
+            onSave={(updates) => { saveLight(detailLight.id, activeScene, updates); setDetailLight(null); detailFromCardRef.current = null; }}
           />
+        )}
+        {showFromPhoto && (
+          <FromPhotoSheet
+            onClose={() => { setShowFromPhoto(false); setShowStylePicker(false); setStylePickerForceExit(false); }}
+            onBack={() => setShowFromPhoto(false)}
+            onCloseAll={() => setStylePickerForceExit(true)}
+            onDone={handleStyleDone}
+          />
+        )}
+        {showFromPhoto && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
+            <StatusBar />
+          </div>
+        )}
+        {showFromPhoto && (
+          <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+            <div style={{ width: 36, height: 5, borderRadius: 3, background: 'rgba(204,204,204,0.50)' }} />
+          </div>
+        )}
+        {showSchedule && (
+          <SceneScheduleSheet
+            activeScene={activeScene}
+            onClose={() => { setShowSchedule(false); setShowOverview(false); }}
+            onConfirm={handleScheduleConfirm}
+            onTurnOffAll={() => setLights(prev => prev.map(l => ({ ...l, on: false })))}
+          />
+        )}
+        {blinkActive && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 200,
+            background: '#000',
+            opacity: blinkVisible ? 0.30 : 0,
+            transition: 'opacity 0.8s ease-in-out',
+            pointerEvents: 'none',
+          }} />
+        )}
+        {showSchedule && (
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, pointerEvents: 'none' }}>
+            <StatusBar />
+          </div>
+        )}
+        {showSchedule && (
+          <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+            <div style={{ width: 36, height: 5, borderRadius: 3, background: 'rgba(204,204,204,0.50)' }} />
+          </div>
         )}
       </div>
     </div>
@@ -1727,6 +2010,384 @@ function StatusBar() {
   );
 }
 
+// ── From Photo Sheet ──────────────────────────────────────────────────────────
+
+function FromPhotoSheet({ onClose, onBack, onCloseAll, onDone }: { onClose: () => void; onBack: () => void; onCloseAll?: () => void; onDone?: () => void }) {
+  const [entered,      setEntered]      = useState(false);
+  const [exiting,      setExiting]      = useState(false);
+  const [frameHovered, setFrameHovered] = useState(false);
+  const [framePressed, setFramePressed] = useState(false);
+  const [phase, setPhase] = useState<'empty' | 'photo' | 'processing' | 'sphere' | 'done'>('empty');
+  const [photoReveal,  setPhotoReveal]  = useState(false);
+  const [btnVisible,   setBtnVisible]   = useState(false);
+  const [iconSwap,     setIconSwap]     = useState(false);
+  const [frameDims,    setFrameDims]    = useState<{w:number;h:number}|null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  // Measure natural frame size once so we can animate from it
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      if (frameRef.current) {
+        const r = frameRef.current.getBoundingClientRect();
+        setFrameDims({ w: Math.round(r.width), h: Math.round(r.height) });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const exit = (cb: () => void) => { setExiting(true); setTimeout(cb, 420); };
+  const isIn         = entered && !exiting;
+  const ease         = 'cubic-bezier(0.32, 0.72, 0, 1)';
+  const isSphere     = phase === 'sphere' || phase === 'done';
+  const isProcessing = phase === 'processing' || phase === 'sphere';
+  const isDone       = phase === 'done';
+
+  const handleFrameClick = () => {
+    if (phase !== 'empty') return;
+    setFramePressed(false);
+    setPhase('photo');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setPhotoReveal(true);
+      setTimeout(() => setBtnVisible(true), 320);
+    }));
+  };
+
+  const handleStyleClick = () => {
+    if (phase === 'done') {
+      onDone?.();
+      exit(onClose);
+      return;
+    }
+    if (phase !== 'photo') return;
+    setPhase('processing');
+    setTimeout(() => {
+      setPhase('sphere');
+      setTimeout(() => {
+        setPhase('done');
+        setTimeout(() => setIconSwap(true), 180);
+      }, 1000);
+    }, 2500);
+  };
+
+  const SPHERE_SIZE = 228;
+  const spring = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+  const morphT  = `width 0.78s ${spring}, height 0.78s ${spring}, border-radius 0.72s ${spring}`;
+
+  // Explicit pixel dims after measurement → used for morphing
+  const frameW = isSphere ? SPHERE_SIZE : (frameDims?.w ?? undefined);
+  const frameH = isSphere ? SPHERE_SIZE : (frameDims?.h ?? undefined);
+  const useAR  = !frameDims && !isSphere; // fall back to aspectRatio before measurement
+
+  const glassBase: React.CSSProperties = {
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 10px rgba(0,0,0,0.22)',
+    cursor: 'pointer',
+  };
+
+  const MESH = [
+    { left: '8%',  top: '12%', width: '65%', height: '50%', color: 'rgba(255,100,60,0.22)',  blur: 38, dur: '3.8s', delay: '0s'    },
+    { left: '35%', top: '40%', width: '60%', height: '52%', color: 'rgba(140,60,255,0.18)',  blur: 42, dur: '5.2s', delay: '-1.7s' },
+    { left: '5%',  top: '48%', width: '55%', height: '44%', color: 'rgba(60,140,255,0.16)',  blur: 36, dur: '4.5s', delay: '-2.3s' },
+    { left: '30%', top: '8%',  width: '48%', height: '48%', color: 'rgba(255,160,60,0.14)',  blur: 40, dur: '6.1s', delay: '-3.1s' },
+  ];
+
+  // Warm shimmer — pink/orange tones matching the photo palette
+  const SHIMMER = [
+    { left: '-5%', top: '5%',  width: '68%', height: '58%', color: 'rgba(255,100,170,0.60)', blur: 36, dur: '2.0s', delay: '0s'    },
+    { left: '38%', top: '25%', width: '65%', height: '62%', color: 'rgba(255,140,50,0.55)',  blur: 40, dur: '2.9s', delay: '-0.9s' },
+    { left: '3%',  top: '42%', width: '58%', height: '54%', color: 'rgba(200,40,110,0.50)',  blur: 36, dur: '2.5s', delay: '-1.5s' },
+    { left: '26%', top: '2%',  width: '55%', height: '52%', color: 'rgba(255,215,80,0.48)',  blur: 38, dur: '3.4s', delay: '-2.0s' },
+    { left: '55%', top: '50%', width: '50%', height: '48%', color: 'rgba(160,40,230,0.44)',  blur: 34, dur: '3.1s', delay: '-1.1s' },
+    { left: '-2%', top: '60%', width: '46%', height: '44%', color: 'rgba(255,80,130,0.40)',  blur: 32, dur: '4.0s', delay: '-2.7s' },
+    { left: '42%', top: '-2%', width: '44%', height: '46%', color: 'rgba(255,190,60,0.36)',  blur: 38, dur: '2.7s', delay: '-0.4s' },
+  ];
+
+  // Yellow/pink sphere — red scene structure + Сияние diagonal curl
+  const SPHERE_GRADIENT = [
+    "radial-gradient(ellipse 42% 30% at 22% 20%, rgb(255,218,52) 0%, rgba(255,190,40,0.55) 45%, transparent 72%)",
+    "radial-gradient(ellipse at 32% 48%, rgb(255,175,78) 0%, transparent 42%)",
+    "radial-gradient(ellipse at 52% 52%, rgb(238,65,140) 0%, transparent 38%)",
+    "radial-gradient(ellipse 68% 20% at 36% 42%, rgba(255,198,78,0.65) 0%, rgba(255,158,55,0.18) 62%, transparent 85%)",
+    "radial-gradient(ellipse at 80% 18%, rgb(158,18,108) 0%, transparent 44%)",
+    "radial-gradient(ellipse 28% 55% at 90% 52%, rgb(108,8,78) 0%, transparent 60%)",
+    "radial-gradient(ellipse at 18% 78%, rgb(218,148,38) 0%, transparent 42%)",
+    "radial-gradient(ellipse at 78% 80%, rgb(98,8,68) 0%, transparent 44%)",
+    "rgb(68,6,42)",
+  ].join(', ');
+
+  const frameFilter = framePressed
+    ? 'brightness(0.88) saturate(1.10)'
+    : frameHovered
+      ? 'brightness(1.05) saturate(1.10)'
+      : 'brightness(1) saturate(1)';
+
+  const btnLabel = isDone ? 'Готово' : isProcessing ? 'Создаем' : 'Сделать стиль';
+
+  return (
+    <>
+      <style>{`
+        @keyframes meshPulse {
+          0%,100% { opacity: 0.15; }
+          50%      { opacity: 1; }
+        }
+        @keyframes shimmerPulse {
+          0%,100% { opacity: 0.20; }
+          50%      { opacity: 1; }
+        }
+        @keyframes sparkColorPulse {
+          0%   { fill: rgba(255,235,242,0.95); }
+          33%  { fill: rgba(255,252,228,0.95); }
+          66%  { fill: rgba(238,228,255,0.95); }
+          100% { fill: rgba(255,235,242,0.95); }
+        }
+        @keyframes textSlideUp {
+          from { opacity: 0; transform: translateY(5px); }
+          to   { opacity: 1; transform: translateY(0);   }
+        }
+        @keyframes sphereShimmer {
+          0%   { opacity: 0.18; transform: scale(1)    translate(0px,   0px);  }
+          30%  { opacity: 0.62; transform: scale(1.14) translate(9px,  -7px);  }
+          60%  { opacity: 0.28; transform: scale(0.94) translate(-7px,  9px);  }
+          100% { opacity: 0.18; transform: scale(1)    translate(0px,   0px);  }
+        }
+      `}</style>
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 44,
+        background: [
+          'radial-gradient(ellipse 75% 55% at 18% 22%, rgba(255,160,130,0.07) 0%, transparent 60%)',
+          'radial-gradient(ellipse 60% 50% at 82% 72%, rgba(160,120,220,0.07) 0%, transparent 60%)',
+          'radial-gradient(ellipse 50% 40% at 50% 5%,  rgba(255,200,180,0.05) 0%, transparent 55%)',
+          'linear-gradient(to bottom, rgb(18,13,24) 0%, rgb(12,9,18) 100%)',
+        ].join(', '),
+        opacity:    isIn ? 1 : 0,
+        transform:  isIn ? 'translateY(0px)' : 'translateY(56px)',
+        filter:     isIn ? 'blur(0px)' : 'blur(14px)',
+        transition: `opacity 0.34s ${ease}, transform 0.34s ${ease}, filter 0.34s ${ease}`,
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{ height: 109, display: 'flex', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 16, flexShrink: 0, justifyContent: 'space-between' }}>
+          <button onClick={() => exit(onBack)} style={{ ...glassBase, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '0.5px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none" style={{ marginLeft: -3 }}>
+              <path d="M8.5 1.5L1.5 8.5L8.5 15.5" stroke="rgba(255,255,255,0.88)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span style={{ fontSize: 17, fontWeight: 600, color: 'rgba(255,255,255,0.92)', letterSpacing: '-0.2px', marginBottom: 12 }}>Из фото</span>
+          <button onClick={() => { onCloseAll?.(); exit(onClose); }} style={{ ...glassBase, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '0.5px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M1.5 1.5L11.5 11.5M11.5 1.5L1.5 11.5" stroke="rgba(255,255,255,0.88)" strokeWidth="1.9" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Center — single frame div morphs into sphere */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            ref={frameRef}
+            style={{
+              // Size: use measured px for morphing, fallback to aspectRatio before measurement
+              width:       frameW ?? 'calc(100% - 48px)',
+              height:      frameH,
+              aspectRatio: useAR ? '3/4' : undefined,
+              borderRadius: isSphere ? '50%' : 42,
+              padding: isSphere ? 0 : '1.5px',
+              background: isSphere
+                ? 'none'
+                : 'linear-gradient(135deg, rgba(255,170,130,0.26) 0%, rgba(190,110,255,0.18) 30%, rgba(110,180,255,0.22) 60%, rgba(255,170,130,0.26) 100%)',
+              filter: phase === 'empty' ? frameFilter : 'brightness(1) saturate(1)',
+              transition: isSphere
+                ? morphT
+                : framePressed ? 'filter 0.08s ease' : 'filter 0.25s ease',
+              cursor: phase === 'empty' ? 'pointer' : 'default',
+              pointerEvents: phase === 'empty' ? 'auto' : 'none',
+              flexShrink: 0,
+            }}
+            onMouseEnter={() => { if (phase === 'empty') setFrameHovered(true); }}
+            onMouseLeave={() => { setFrameHovered(false); setFramePressed(false); }}
+            onMouseDown={() => { if (phase === 'empty') setFramePressed(true); }}
+            onMouseUp={() => setFramePressed(false)}
+            onClick={handleFrameClick}
+          >
+            {/* Inner glass */}
+            <div style={{
+              width: '100%', height: '100%',
+              borderRadius: isSphere ? '50%' : 40.5,
+              transition: isSphere ? `border-radius 0.72s ${spring}` : 'none',
+              backdropFilter: 'blur(28px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(28px) saturate(140%)',
+              background: 'rgba(10,5,20,0.40)',
+              position: 'relative', overflow: 'hidden',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {/* Ambient mesh */}
+              {MESH.map((b, i) => (
+                <div key={i} style={{
+                  position: 'absolute', left: b.left, top: b.top, width: b.width, height: b.height,
+                  borderRadius: '50%', background: b.color, filter: `blur(${b.blur}px)`,
+                  animation: `meshPulse ${b.dur} ease-in-out infinite`, animationDelay: b.delay, pointerEvents: 'none',
+                }} />
+              ))}
+              {/* Photo — fades in on tap, fades out as sphere gradient takes over */}
+              {phase !== 'empty' && (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  backgroundImage: 'url(/style-visualize.jpg)',
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                  opacity: (photoReveal && !isSphere) ? 1 : 0,
+                  transition: isSphere ? 'opacity 0.70s ease' : 'opacity 0.65s ease',
+                  zIndex: 2,
+                }} />
+              )}
+              {/* Warm aurora sphere gradient — replaces photo via fade */}
+              {phase !== 'empty' && (
+                <div style={{
+                  position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none',
+                  background: SPHERE_GRADIENT,
+                  filter: 'saturate(1.3)',
+                  opacity: isSphere ? 1 : 0,
+                  transition: isSphere ? 'opacity 0.72s ease 0.10s' : 'opacity 0.2s ease',
+                }} />
+              )}
+              {/* Warm shimmer — fades in on processing, fades out on done */}
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 5,
+                overflow: 'hidden', pointerEvents: 'none',
+                opacity: (isProcessing && !isDone) ? 1 : 0,
+                transition: 'opacity 0.8s ease',
+              }}>
+                {SHIMMER.map((b, i) => (
+                  <div key={i} style={{
+                    position: 'absolute', left: b.left, top: b.top, width: b.width, height: b.height,
+                    borderRadius: '50%', background: b.color, filter: `blur(${b.blur}px)`,
+                    animation: `shimmerPulse ${b.dur} ease-in-out infinite`, animationDelay: b.delay,
+                  }} />
+                ))}
+              </div>
+              {/* Iridescent sphere shimmer — flowing color blobs, only when sphere */}
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
+                opacity: isSphere ? 1 : 0,
+                transition: 'opacity 0.6s ease 0.5s',
+              }}>
+                {([
+                  { left: '8%',  top: '18%', w: '62%', h: '52%', color: 'rgba(255,210,80,0.42)',  blur: 30, dur: '3.4s', delay: '0s'    },
+                  { left: '38%', top: '28%', w: '58%', h: '50%', color: 'rgba(255,70,170,0.36)',   blur: 32, dur: '4.2s', delay: '-1.5s' },
+                  { left: '4%',  top: '44%', w: '52%', h: '46%', color: 'rgba(130,30,210,0.30)',   blur: 28, dur: '3.8s', delay: '-2.2s' },
+                  { left: '32%', top: '8%',  w: '50%', h: '44%', color: 'rgba(255,150,55,0.28)',   blur: 30, dur: '5.1s', delay: '-0.9s' },
+                ] as {left:string;top:string;w:string;h:string;color:string;blur:number;dur:string;delay:string}[]).map((b, i) => (
+                  <div key={i} style={{
+                    position: 'absolute', left: b.left, top: b.top, width: b.w, height: b.h,
+                    borderRadius: '50%', background: b.color, filter: `blur(${b.blur}px)`,
+                    animation: `sphereShimmer ${b.dur} ease-in-out infinite`, animationDelay: b.delay,
+                  }} />
+                ))}
+              </div>
+              {/* Frosted glass layers — fade in as sphere forms */}
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 8, pointerEvents: 'none',
+                opacity: isSphere ? 1 : 0,
+                transition: isSphere ? 'opacity 0.55s ease 0.30s' : 'opacity 0.2s ease',
+              }}>
+                {/* Frosted coat — матовая поверхность рассеивает внутренний свет */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 94% 90% at 50% 48%, rgba(255,255,255,0.22) 0%, rgba(255,245,235,0.10) 55%, transparent 80%)' }} />
+                {/* Inner glow bloom — свет, пробивающийся сквозь матовое стекло изнутри */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 62% 58% at 50% 50%, rgba(255,255,230,0.38) 0%, rgba(255,210,160,0.18) 45%, transparent 70%)' }} />
+                {/* Primary specular — главный блик на поверхности стекла */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 22% 16% at 31% 17%, rgba(255,255,255,0.96) 0%, rgba(255,252,238,0.60) 32%, transparent 66%)' }} />
+                {/* Micro glint — острая горячая точка внутри блика */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 5% 3.5% at 26% 12%, rgba(255,255,255,1) 0%, transparent 100%)' }} />
+                {/* Secondary specular — меньший блик справа-сверху */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 10% 7% at 72% 20%, rgba(255,255,255,0.58) 0%, transparent 68%)' }} />
+                {/* Fresnel rim — тонкий светлый ободок от полного внутреннего отражения */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 9% 58% at 97% 52%, rgba(255,225,200,0.40) 0%, transparent 72%)' }} />
+                {/* Bottom warm rim — тёплый свет огибает нижний край */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 58% 14% at 50% 99%, rgba(255,195,120,0.28) 0%, transparent 68%)' }} />
+                {/* Left thin catch light — отблеск слева */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 6% 32% at 2% 48%, rgba(255,185,215,0.24) 0%, transparent 72%)' }} />
+                {/* Edge vignette — темнее к краям, создаёт объём */}
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 100% 100% at 50% 50%, transparent 38%, rgba(10,2,25,0.75) 100%)' }} />
+              </div>
+              {/* Plus icon */}
+              <svg width="38" height="38" viewBox="0 0 38 38" fill="none" style={{
+                position: 'relative', zIndex: 1, pointerEvents: 'none',
+                opacity: photoReveal ? 0 : 0.55, transition: 'opacity 0.30s ease',
+              }}>
+                <path d="M19 7V31M7 19H31" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Button area */}
+        <div style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            onClick={handleStyleClick}
+            style={{
+              height: 44, padding: '0 22px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              borderRadius: 22,
+              background: 'rgba(255,200,220,0.10)',
+              border: '0.5px solid rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 10px rgba(0,0,0,0.22)',
+              color: 'rgba(255,255,255,0.88)',
+              cursor: (phase === 'photo' || phase === 'done') ? 'pointer' : 'default',
+              opacity: btnVisible ? 1 : 0,
+              transform: btnVisible ? 'translateY(0px)' : 'translateY(14px)',
+              transition: 'opacity 0.42s ease, transform 0.42s cubic-bezier(0.32,0.94,0.60,1)',
+              pointerEvents: btnVisible ? 'auto' : 'none',
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ width: 16, height: 16, position: 'relative', flexShrink: 0 }}>
+              {/* Spark */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{
+                position: 'absolute', inset: 0,
+                opacity:   iconSwap ? 0 : 1,
+                transform: iconSwap ? 'scale(0) rotate(-30deg)' : 'scale(1) rotate(0deg)',
+                transition: 'opacity 0.22s ease, transform 0.28s cubic-bezier(0.55,0,1,1)',
+              }}>
+                <path
+                  d="M8 0 C8 0 8.8 5.2 16 8 C8.8 10.8 8 16 8 16 C8 16 7.2 10.8 0 8 C7.2 5.2 8 0 8 0Z"
+                  style={{ animation: (isProcessing && !isDone) ? 'sparkColorPulse 2.2s ease-in-out infinite' : 'none' }}
+                  fill="rgba(255,255,255,0.85)"
+                />
+              </svg>
+              {/* Checkmark */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{
+                position: 'absolute', inset: 0,
+                opacity:   iconSwap ? 1 : 0,
+                transform: iconSwap ? 'scale(1)' : 'scale(0)',
+                transition: 'opacity 0.28s ease 0.12s, transform 0.40s cubic-bezier(0.34,1.56,0.64,1) 0.10s',
+              }}>
+                <path d="M2.5 8L6.5 12L13.5 4.5" pathLength="1"
+                  stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ strokeDasharray: 1, strokeDashoffset: iconSwap ? 0 : 1, transition: iconSwap ? 'stroke-dashoffset 0.45s ease 0.18s' : 'none' }}
+                />
+              </svg>
+            </div>
+            <span key={btnLabel} style={{ fontSize: 16, fontWeight: 500, letterSpacing: '-0.1px', animation: 'textSlideUp 0.28s ease' }}>
+              {btnLabel}
+            </span>
+          </button>
+        </div>
+
+        {/* Bottom safe area — +50px raises button */}
+        <div style={{ height: 74 }} />
+      </div>
+    </>
+  );
+}
+
 // ── Controls ─────────────────────────────────────────────────────────────────
 
 // ── Overview ──────────────────────────────────────────────────────────────────
@@ -1734,19 +2395,26 @@ function StatusBar() {
 function LightCard({ light, onToggle, onDetail, activeScene }: {
   light: LightSource;
   onToggle: (id: number) => void;
-  onDetail: (light: LightSource) => void;
+  onDetail: (light: LightSource, rect: DOMRect) => void;
   activeScene: number;
 }) {
   const p = (SCENE_CARD_PALETTES[activeScene] ?? SCENE_CARD_PALETTES[0])[light.blobGroup];
   const a = (rgb: string, op: number) => rgb.replace('rgb(', 'rgba(').replace(')', `,${op})`);
 
+  const sceneData    = light.sceneSettings?.[activeScene];
+  const customHue    = sceneData?.customHue;
+  const customSat    = sceneData?.customSaturation ?? 72;
+  const effectiveBr  = Math.max(0.04, (sceneData?.brightness ?? light.brightness) / 100);
+  const fogColor  = customHue !== undefined ? hslToRgb(customHue, 100, 48) : p.fog;
+  const glowColor = customHue !== undefined ? hslToRgb(customHue, 100, 50) : p.glow;
+
   const borderGradient = light.on
-    ? `linear-gradient(135deg, rgba(255,255,255,0.38) 0%, ${a(p.fog, 0.28)} 38%, rgba(255,255,255,0.08) 65%, ${a(p.glow, 0.20)} 100%)`
+    ? `linear-gradient(135deg, rgba(255,255,255,0.38) 0%, ${a(fogColor, 0.28)} 38%, rgba(255,255,255,0.08) 65%, ${a(glowColor, 0.20)} 100%)`
     : `linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)`;
 
   return (
     <div
-      onClick={() => onDetail(light)}
+      onClick={(e) => onDetail(light, (e.currentTarget as HTMLElement).getBoundingClientRect())}
       style={{
         borderRadius: 32,
         cursor: 'pointer', flexShrink: 0,
@@ -1759,7 +2427,15 @@ function LightCard({ light, onToggle, onDetail, activeScene }: {
       }}>
         {/* Blobs — always rendered, fade in/out */}
         <div style={{ opacity: light.on ? 1 : 0, transition: 'opacity 0.7s ease' }}>
-          <CardBlobs palette={p} />
+          <CardBlobs palette={p} brightness={effectiveBr} />
+          {customHue !== undefined && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              background: `hsl(${customHue}, ${customSat}%, 52%)`,
+              mixBlendMode: 'color',
+              pointerEvents: 'none',
+            }} />
+          )}
         </div>
         {/* Bottom vignette */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(to bottom, transparent 40%, rgb(6,4,10) 100%)' }} />
@@ -1808,7 +2484,7 @@ function OverviewSheet({ lights, onToggle, onClose, onDetail, activeScene }: {
   lights: LightSource[];
   onToggle: (id: number) => void;
   onClose: () => void;
-  onDetail: (light: LightSource) => void;
+  onDetail: (light: LightSource, rect: DOMRect) => void;
   activeScene: number;
 }) {
   const [isIn, setIsIn] = useState(false);
@@ -1895,7 +2571,185 @@ function OverviewSheet({ lights, onToggle, onClose, onDetail, activeScene }: {
   );
 }
 
-function Controls({ onOverview }: { onOverview: () => void }) {
+// ── Scene Schedule Sheet ──────────────────────────────────────────────────────
+
+type FadeMode = 'instant' | 'smooth';
+
+const SCHEDULE_TIMES: { label: string; minutes: number }[] = [
+  { label: 'Сейчас',       minutes: 0  },
+  { label: 'Через 15 мин', minutes: 15 },
+  { label: 'Через 1 час',  minutes: 60 },
+];
+
+function SceneScheduleSheet({ activeScene, onClose, onConfirm, onTurnOffAll }: {
+  activeScene: number;
+  onClose: () => void;
+  onConfirm: () => void;
+  onTurnOffAll: () => void;
+}) {
+  const [entered, setEntered] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const [exitSlow, setExitSlow] = useState(false);
+  const [selectedMinutes, setSelectedMinutes] = useState<number | null>(15);
+  const [fadeMode, setFadeMode] = useState<FadeMode>('smooth');
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const handleClose = () => { setExiting(true); setExitSlow(false); setTimeout(onClose, 380); };
+
+  const handleConfirm = () => {
+    if (selectedMinutes === 0) onTurnOffAll();
+    setExiting(true); setExitSlow(true);
+    onConfirm();
+  };
+
+  const isIn = entered && !exiting;
+  const ease = 'cubic-bezier(0.32, 0.72, 0, 1)';
+
+  const pal = SCENE_CARD_PALETTES[activeScene] ?? SCENE_CARD_PALETTES[0];
+  const ta = (rgb: string, op: number) => rgb.replace('rgb(', 'rgba(').replace(')', `,${op})`);
+  const accent  = pal[0].fog;
+  const accent2 = pal[2].fog;
+  const accentText = pal[0].ab2;
+
+  const glassBase: React.CSSProperties = {
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    border: '0.5px solid rgba(255,255,255,0.15)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 12px rgba(0,0,0,0.25)',
+  };
+
+  const chip = (active: boolean): React.CSSProperties => ({
+    ...glassBase,
+    height: 38, padding: '0 16px',
+    borderRadius: 19,
+    background: active ? ta(accent, 0.18) : 'rgba(255,255,255,0.06)',
+    border: active ? `0.5px solid ${ta(accent, 0.55)}` : '0.5px solid rgba(255,255,255,0.13)',
+    color: active ? accentText : 'rgba(255,255,255,0.68)',
+    fontSize: 14, fontWeight: active ? 600 : 400,
+    cursor: 'pointer',
+    transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+    whiteSpace: 'nowrap',
+  });
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 42,
+      background: [
+        `radial-gradient(ellipse 70% 50% at 20% 25%, ${ta(accent, 0.07)} 0%, transparent 60%)`,
+        `radial-gradient(ellipse 60% 45% at 80% 70%, ${ta(accent2, 0.05)} 0%, transparent 65%)`,
+        'linear-gradient(to bottom, rgb(16,11,22) 0%, rgb(10,7,18) 100%)',
+      ].join(', '),
+      opacity:    isIn ? 1 : 0,
+      transform:  isIn ? 'translateY(0px)' : exitSlow ? 'translateY(72px)' : 'translateY(56px)',
+      filter:     isIn ? 'blur(0px)' : exitSlow ? 'blur(18px)' : 'blur(14px)',
+      transition: isIn
+        ? `opacity 0.34s ${ease}, transform 0.34s ${ease}, filter 0.34s ${ease}`
+        : exitSlow
+          ? 'opacity 0.28s ease-in, transform 0.28s ease-in, filter 0.28s ease-in'
+          : `opacity 0.34s ${ease}, transform 0.34s ${ease}, filter 0.34s ${ease}`,
+      display: 'flex', flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{ height: 109, display: 'flex', alignItems: 'flex-end', paddingLeft: 16, paddingRight: 16, flexShrink: 0 }}>
+        <button
+          onClick={handleClose}
+          style={{
+            ...glassBase,
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.07)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <svg width="10" height="17" viewBox="0 0 10 17" fill="none" style={{ marginLeft: -4 }}>
+            <path d="M8.5 1.5L1.5 8.5L8.5 15.5" stroke="rgba(255,255,255,0.88)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <span style={{
+          flex: 1, textAlign: 'center', marginRight: 44,
+          fontSize: 17, fontWeight: 600, color: 'rgba(255,255,255,0.92)', letterSpacing: '-0.2px',
+          marginBottom: 12,
+        }}>
+          Выключение света
+        </span>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, padding: '12px 20px 0', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 68 }}>
+
+        {/* When */}
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.35)', marginBottom: 12 }}>
+            Выключить
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {SCHEDULE_TIMES.map(opt => (
+              <button
+                key={opt.minutes}
+                onClick={() => setSelectedMinutes(selectedMinutes === opt.minutes ? null : opt.minutes)}
+                style={chip(selectedMinutes === opt.minutes)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Fade */}
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.35)', marginBottom: 12 }}>
+            Угасание
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['instant', 'smooth'] as FadeMode[]).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setFadeMode(mode)}
+                style={chip(fadeMode === mode)}
+              >
+                {mode === 'instant' ? 'Сразу' : 'Плавно'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Confirm button — pinned to bottom */}
+      <div style={{ padding: '24px 20px 52px', flexShrink: 0, display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+        <button
+          onClick={handleConfirm}
+          style={{
+            height: 44, padding: '0 28px',
+            display: 'flex', alignItems: 'center', gap: 10,
+            borderRadius: 22,
+            background: ta(accent, 0.12),
+            border: `0.5px solid ${ta(accent, 0.38)}`,
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 14px ${ta(accent, 0.18)}`,
+            color: accentText,
+            fontSize: 16, fontWeight: 500, letterSpacing: '-0.1px',
+            cursor: 'pointer',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 1V8" stroke={accentText} strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M4.6 3.4A6.5 6.5 0 1 0 11.4 3.4" stroke={accentText} strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          Выключить
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Controls({ onOverview, onSchedule }: { onOverview: () => void; onSchedule: () => void }) {
   const glassBase: React.CSSProperties = {
     backdropFilter: 'blur(24px) saturate(180%)',
     WebkitBackdropFilter: 'blur(24px) saturate(180%)',
@@ -1923,7 +2777,7 @@ function Controls({ onOverview }: { onOverview: () => void }) {
       </span>
 
       {/* Right — single round button with sun icon */}
-      <button style={{ ...glassBase, position: 'absolute', right: 16, top: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,200,220,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+      <button onClick={onSchedule} style={{ ...glassBase, position: 'absolute', right: 16, top: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,200,220,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <circle cx="10" cy="10" r="3.2" fill={iconColor} />
           <line x1="10" y1="0.5"  x2="10" y2="4"   stroke={iconColor} strokeWidth="1.6" strokeLinecap="round" />
@@ -1943,20 +2797,24 @@ function Controls({ onOverview }: { onOverview: () => void }) {
 
 // ── Bottom tray ───────────────────────────────────────────────────────────────
 
-function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle }: {
+function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle, sceneCustomData, allScenes }: {
   activeScene: number;
   logPos: number;
   onSceneChange: (i: number) => void;
   onNewStyle: () => void;
+  sceneCustomData: { hue: number; saturation: number }[][];
+  allScenes: SceneDef[];
 }) {
+  const allN = allScenes.length;
+  const posToIdxLocal = (p: number) => ((p % allN) + allN) % allN;
   const dragX = useRef<number | null>(null);
   const onStart = (x: number) => { dragX.current = x; };
   const onEnd   = (x: number) => {
     if (dragX.current === null) return;
     const dx = x - dragX.current;
     dragX.current = null;
-    if (dx < -45) onSceneChange((activeScene + 1) % N);
-    if (dx >  45) onSceneChange((activeScene - 1 + N) % N);
+    if (dx < -45) onSceneChange((activeScene + 1) % allN);
+    if (dx >  45) onSceneChange((activeScene - 1 + allN) % allN);
   };
 
   return (
@@ -1972,8 +2830,8 @@ function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle }: {
       <div className="relative w-full" style={{ height: 108, marginTop: 40 }}>
         {([-3, -2, -1, 0, 1, 2, 3]).map((d) => {
           const k        = logPos + d;
-          const sceneIdx = posToIdx(k);
-          const scene    = SCENES[sceneIdx];
+          const sceneIdx = posToIdxLocal(k);
+          const scene    = allScenes[sceneIdx];
           const absDist  = Math.abs(d);
           const sz = absDist === 0 ? 68 : absDist === 1 ? 57 : 52;
           const op = absDist === 0 ? 1 : absDist === 1 ? 0.60 : absDist === 2 ? 0.36 : 0;
@@ -1996,13 +2854,13 @@ function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle }: {
                 transition:    "all 0.5s cubic-bezier(0.34,1.56,0.64,1)",
               }}
             >
-              {/* Blurred gradient glow — multicolor, matches sphere */}
+              {/* Blurred gradient glow */}
               <div style={{
                 position:      'absolute',
                 borderRadius:  '50%',
                 background:    scene.sphere.gradient,
                 filter:        'blur(13px)',
-                opacity:       d === 0 ? 0.36 : 0,
+                opacity:       d === 0 ? 0.12 : 0,
                 width:         '115%',
                 height:        '115%',
                 top:           '-8%',
@@ -2015,7 +2873,7 @@ function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle }: {
                 className="relative rounded-full overflow-hidden outline-none w-full h-full"
                 style={{
                   background: scene.sphere.gradient,
-                  boxShadow:  scene.sphere.glassInset ?? "none",
+                  boxShadow:  scene.sphere.glassInset ?? scene.sphere.glow ?? "none",
                   filter: (sceneIdx === 3 || sceneIdx === 1)
                     ? 'saturate(1.15) contrast(1.10) brightness(1.05)'
                     : (d === 0 && sceneIdx === 0 ? 'saturate(1.15) brightness(1.10) contrast(1.05)' : undefined),
@@ -2030,6 +2888,15 @@ function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle }: {
                     filter: "blur(5px)",
                   }}
                 />
+                {(sceneCustomData[sceneIdx] ?? []).map((custom, i) => (
+                  <span key={i} style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    background: `radial-gradient(ellipse 90% 80% at 40% 35%, hsl(${custom.hue}, ${custom.saturation}%, 65%) 0%, hsl(${custom.hue}, ${custom.saturation}%, 55%) 45%, transparent 100%)`,
+                    mixBlendMode: 'screen',
+                    opacity: 0.62,
+                    pointerEvents: 'none',
+                  }} />
+                ))}
               </button>
             </div>
           );
