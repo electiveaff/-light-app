@@ -1010,236 +1010,7 @@ function BlobHeat({ sceneIdx }: { sceneIdx: number }) {
   );
 }
 
-// ── CSS blob renderer ─────────────────────────────────────────────────────────
 
-// Layer group splits: G0=9 layers (blobGroup 2, top), G1=10 (blobGroup 1, right), G2=10 (blobGroup 0, left)
-const BLOB_LAYER_SPLIT: [number, number] = [9, 19];
-// For each layer group: which blobGroup it belongs to, and its center in layer-space
-const LAYER_META: { blobGroup: 0|1|2; ox: number; oy: number }[] = [
-  { blobGroup: 2, ox: 228, oy: 253 },
-  { blobGroup: 1, ox: 285, oy: 530 },
-  { blobGroup: 0, ox: 120, oy: 423 },
-];
-
-function CSSBlobsV1({ sceneIdx, groupBrightness, groupCustomHues, groupSaturations }: {
-  sceneIdx: number;
-  groupBrightness: [number, number, number];
-  groupCustomHues: (number | null)[];
-  groupSaturations: (number | null)[];
-}) {
-  const scenePalettes = SCENE_CARD_PALETTES[sceneIdx] ?? SCENE_CARD_PALETTES[0];
-  const groups = LAYER_META.map(({ blobGroup }) => {
-    const ch = groupCustomHues[blobGroup];
-    const palette = ch !== null && ch !== undefined
-      ? hueToPalette(ch, (groupSaturations[blobGroup] ?? 72) / 100)
-      : scenePalettes[blobGroup];
-    const dx = BLOB_CORE_CENTERS[blobGroup][0] - DETAIL_BLOB_CENTER[0];
-    const dy = BLOB_CORE_CENTERS[blobGroup][1] - DETAIL_BLOB_CENTER[1];
-    return buildDetailLayers(palette).map(l => ({ ...l, x: l.x + dx, y: l.y + dy }));
-  });
-
-  const hoverRef           = useRef([0, 0, 0]);
-  const groupRefs          = useRef<(HTMLDivElement | null)[]>([null, null, null]);
-  const containerRef       = useRef<HTMLDivElement>(null);
-  const cursorRef          = useRef({ x: -9999, y: -9999 });
-  const groupBrightnessRef = useRef(groupBrightness);
-  groupBrightnessRef.current = groupBrightness;
-  const groupCustomHuesRef   = useRef(groupCustomHues);
-  groupCustomHuesRef.current = groupCustomHues;
-  const groupSaturationsRef  = useRef(groupSaturations);
-  groupSaturationsRef.current = groupSaturations;
-  const defaultSat = sceneIdx === 3 ? 1.04 : 1.3;
-
-  useEffect(() => {
-    let rafId = 0;
-    const RADIUS = 130;
-    const RISE   = 0.08;
-    const FALL   = 0.016;
-
-    const onMove = (e: MouseEvent) => {
-      const r = containerRef.current?.parentElement?.getBoundingClientRect();
-      if (!r) return;
-      cursorRef.current = { x: e.clientX - r.left, y: e.clientY - r.top };
-    };
-    const onLeave = () => { cursorRef.current = { x: -9999, y: -9999 }; };
-
-    const tick = () => {
-      LAYER_META.forEach(({ blobGroup }, gi) => {
-        const [cx, cy] = BLOB_CORE_CENTERS[blobGroup];
-        const dist  = Math.hypot(cursorRef.current.x - cx, cursorRef.current.y - cy);
-        const tgt   = dist < RADIUS ? 1 : 0;
-        const cur   = hoverRef.current[gi];
-        hoverRef.current[gi] = cur + (tgt - cur) * (tgt > cur ? RISE : FALL);
-
-        const div = groupRefs.current[gi];
-        if (!div) return;
-        const h      = hoverRef.current[gi];
-        const baseBr = groupBrightnessRef.current[blobGroup];
-        const brStr  = baseBr < 0.999 ? `brightness(${baseBr.toFixed(3)}) ` : '';
-        const ch     = groupCustomHuesRef.current[blobGroup];
-        const satVal = ch !== null && ch !== undefined
-          ? lerp(0, 2, (groupSaturationsRef.current[blobGroup] ?? 72) / 100)
-          : defaultSat;
-        const satStr = `saturate(${satVal.toFixed(3)}) `;
-        if (h < 0.002) { div.style.filter = (satStr + brStr).trim(); div.style.transform = ''; return; }
-        div.style.filter    = `${satStr}${brStr}saturate(${(1 + 0.18 * h).toFixed(3)}) brightness(${(1 + 0.07 * h).toFixed(3)})`;
-        div.style.transform = `scale(${(1 + 0.08 * h).toFixed(4)})`;
-      });
-      rafId = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseleave', onLeave);
-    rafId = requestAnimationFrame(tick);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseleave', onLeave);
-      cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={containerRef}
-      style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: 'contrast(1.1)' }}
-    >
-      {groups.map((layers, gi) => (
-        <div
-          key={gi}
-          ref={el => { groupRefs.current[gi] = el; }}
-          style={{
-            position: 'absolute', inset: 0,
-            transformOrigin: `${LAYER_META[gi].ox}px ${LAYER_META[gi].oy}px`,
-            willChange: 'transform, filter',
-            pointerEvents: 'none',
-          }}
-        >
-          {layers.map((l, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              left: l.x, top: l.y, width: l.w, height: l.h,
-              borderRadius: '50%',
-              filter: `blur(${l.blur}px)`,
-              mixBlendMode: (l.blend ?? 'normal') as React.CSSProperties['mixBlendMode'],
-              opacity: l.op ?? 1,
-              background: l.bg,
-              pointerEvents: 'none',
-            }} />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Blob V2 ──────────────────────────────────────────────────────────────────
-
-const BLOB_V2_CENTER = [225, 231] as const;
-const BLOB_V2_SIZE   = 580;
-
-const ShaderBlobV2 = dynamic(
-  () => import('shaders/react').then(({
-    Shader: SShader,
-    MultiPointGradient: SMPG,
-    WaveDistortion: SWave,
-    Bulge: SBulge,
-    Paper: SPaper,
-    ChromaticAberration: SCA,
-  }) => {
-    function ShaderBlobV2Impl() {
-      const half = BLOB_V2_SIZE / 2;
-      const mask = 'radial-gradient(circle, black 8%, rgba(0,0,0,0.55) 22%, rgba(0,0,0,0.08) 38%, transparent 48%)';
-      return (
-        <div style={{
-          position: 'absolute',
-          left: BLOB_V2_CENTER[0] - half,
-          top:  BLOB_V2_CENTER[1] - half,
-          width: BLOB_V2_SIZE,
-          height: BLOB_V2_SIZE,
-          maskImage: mask,
-          WebkitMaskImage: mask,
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}>
-          <SShader style={{ position: 'absolute', inset: 0 }}>
-            <SMPG
-              colorA="#ffeedd"
-              colorB="#ff6633"
-              colorC="#ff4422"
-              colorD="#ff7744"
-              colorE="#ff5533"
-              positionA={{
-                type: 'mouse-position' as const,
-                originX: 0.5,
-                originY: 0.5,
-                momentum: 0.1,
-                smoothing: 0.95,
-                reach: 0.06,
-              }}
-              smoothness={4}
-              positionB={{
-                type: 'mouse-position' as const,
-                originX: 0.78,
-                originY: 0.72,
-                momentum: 0.2,
-                smoothing: 0.85,
-                reach: 0.18,
-              }}
-              positionC={{
-                type: 'mouse-position' as const,
-                originX: 0.22,
-                originY: 0.74,
-                momentum: 0.2,
-                smoothing: 0.82,
-                reach: 0.16,
-              }}
-              positionD={{
-                type: 'mouse-position' as const,
-                originX: 0.50,
-                originY: 0.20,
-                momentum: 0.25,
-                smoothing: 0.80,
-                reach: 0.20,
-              }}
-              positionE={{
-                type: 'mouse-position' as const,
-                originX: 0.82,
-                originY: 0.26,
-                momentum: 0.18,
-                smoothing: 0.88,
-                reach: 0.15,
-              }}
-            />
-            <SWave
-              angle={264}
-              frequency={0.7}
-              speed={0.45}
-              waveType="triangle"
-              strength={0.3}
-            />
-            <SBulge
-              center={{
-                type: 'mouse-position' as const,
-                originX: 0.5,
-                originY: 0.5,
-                momentum: 0.15,
-                smoothing: 0.9,
-                reach: 0.14,
-              }}
-              falloff={0.85}
-              radius={0.75}
-              strength={0.55}
-            />
-            <SPaper displacement={0.9} grainScale={3} roughness={0.1} />
-            <SCA />
-          </SShader>
-        </div>
-      );
-    }
-    return { default: ShaderBlobV2Impl };
-  }),
-  { ssr: false }
-);
 
 // ── ShaderDetailBg — ambient shader for SourceDetailScreen ───────────────────
 
@@ -1862,7 +1633,7 @@ function SourceDetailScreen({
   // Blob fly-in only when opening from main screen (not from card)
   const blobTransform = fromCardRect
     ? (isOpen ? 'none' : 'scale(0.94)')
-    : (phase === 'open' ? 'none' : `translate(${dx}px, ${dy}px) scale(0.38)`);
+    : (phase === 'open' ? 'none' : `translate(${dx}px, ${dy}px) scale(0.57)`);
   const blobTransition = fromCardRect
     ? (phase === 'open' ? `transform 0.44s ${SMOOTH}` : phase === 'exiting' ? `transform 0.22s ${EASE}` : 'none')
     : (phase === 'open' ? `transform 0.78s ${SMOOTH}` : phase === 'exiting' ? `transform 0.55s ${EASE}` : 'none');
@@ -2550,6 +2321,58 @@ const GlslBlobCanvas = dynamic(
 
 function mix01(a: number, b: number, t: number) { return a + (b - a) * t; }
 
+// ── Main screen WebGL blobs — same layers as detail screen, scaled to positions ─
+
+function MainBlobsWebGL({ groupBrightness, groupCustomHues, sceneIdx, hideBlobGroup }: {
+  groupBrightness: [number, number, number];
+  groupCustomHues: (number | null)[];
+  sceneIdx: number;
+  hideBlobGroup?: number | null;
+}) {
+  const scenePalettes = SCENE_CARD_PALETTES[sceneIdx] ?? SCENE_CARD_PALETTES[0];
+  return (
+    <>
+      {([0, 1, 2] as const).map(blobGroup => {
+        const ch = groupCustomHues[blobGroup];
+        const hue = ch ?? rgbToHue(scenePalettes[blobGroup].fog);
+        const br = groupBrightness[blobGroup];
+        const [cx, cy] = BLOB_CORE_CENTERS[blobGroup];
+        const dx = cx - DETAIL_BLOB_CENTER[0];
+        const dy = cy - DETAIL_BLOB_CENTER[1];
+        const DEFAULT_B = 0.72;
+        const tLow = Math.max(0, Math.min(1, br / DEFAULT_B));
+        const blobBright = lerp(0.30, 1.0, tLow);
+        const isHiding = hideBlobGroup === blobGroup;
+        return (
+          <div key={blobGroup} style={{
+            position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
+            transformOrigin: `${DETAIL_BLOB_CENTER[0]}px ${DETAIL_BLOB_CENTER[1]}px`,
+            transform: `translate(${dx}px, ${dy}px) scale(0.57)`,
+            filter: `brightness(${blobBright.toFixed(3)})`,
+            opacity: isHiding ? 0 : 1,
+            transition: isHiding ? 'opacity 0.15s ease' : 'none',
+          }}>
+            <GlslBlobCanvas hue={(hue - 18 + 360) % 360} offsetY={80} useBgC2 brightness={0.65} saturate={1.7} opacity={0.65} />
+            <GlslBlobCanvas hue={hue} size={528} blur={10} />
+            <GlslBlobCanvas hue={(hue + 14) % 360} size={280} blur={5} brightness={0.8} fixedHue strongBreathe />
+            <GlslBlobCanvas hue={(hue + 14) % 360} size={160} blur={18} brightness={0.8} fixedHue noBreath />
+            <div style={{
+              position: 'absolute',
+              left: DETAIL_BLOB_CENTER[0] - 52, top: DETAIL_BLOB_CENTER[1] - 52,
+              width: 104, height: 104, borderRadius: '50%',
+              background: `radial-gradient(circle, hsl(${hue},50%,90%) 0%, hsl(${hue},60%,78%) 40%, transparent 80%)`,
+              filter: 'blur(18px)',
+              mixBlendMode: 'screen' as React.CSSProperties['mixBlendMode'],
+              opacity: 0.41,
+              pointerEvents: 'none',
+            }} />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // ── Source detail screen 2 — screen 1 UI + GLSL wave blob overlay ─────────────
 
 const ShaderChromaFlowEffect = dynamic(
@@ -2643,6 +2466,23 @@ function SourceDetailScreen2({
   const tHigh      = Math.max(0, Math.min(1, (liveBrightness - DEFAULT_B) / (1 - DEFAULT_B)));
   const blobScale  = liveBrightness <= DEFAULT_B ? lerp(0.50, 1.0, tLow) : lerp(1.0, 1.20, tHigh);
   const blobBright = lerp(0.30, 1.0, tLow);
+
+  // Fly-in: blob starts at main-screen position, expands to full screen
+  const [phase, setPhase] = useState<'entering' | 'open'>('entering');
+  useEffect(() => {
+    const id1 = requestAnimationFrame(() => {
+      const id2 = requestAnimationFrame(() => setPhase('open'));
+      return () => cancelAnimationFrame(id2);
+    });
+    return () => cancelAnimationFrame(id1);
+  }, []);
+  const EASE2   = 'cubic-bezier(0.32, 0.72, 0, 1)';
+  const SMOOTH2 = 'cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+  const [fromX, fromY] = BLOB_CORE_CENTERS[light.blobGroup];
+  const flyDx = fromX - DETAIL_BLOB_CENTER[0];
+  const flyDy = fromY - DETAIL_BLOB_CENTER[1];
+  const blobFlyTransform = phase === 'open' ? 'none' : `translate(${flyDx}px, ${flyDy}px) scale(0.57)`;
+  const blobFlyTransition = phase === 'open' ? `transform 0.78s ${SMOOTH2}` : 'none';
   const [pressing, setPressing] = useState(false);
   const [effectMounted, setEffectMounted] = useState(false);
   const [effectOpacity, setEffectOpacity] = useState(1);
@@ -2692,6 +2532,12 @@ function SourceDetailScreen2({
       onMouseLeave={handleRelease}
       onMouseMove={handleMouseMove}
     >
+      {/* Dark background fades in as blob expands */}
+      <div style={{
+        position: 'absolute', inset: 0, background: '#17171C', zIndex: 29, pointerEvents: 'none',
+        opacity: phase === 'open' ? 1 : 0,
+        transition: phase === 'open' ? 'opacity 0.45s ease 0.2s' : 'none',
+      }} />
       <SourceDetailScreen
         light={light}
         sceneIdx={sceneIdx}
@@ -2703,27 +2549,36 @@ function SourceDetailScreen2({
         onToggle={onToggle}
         hideBlob
       />
+      {/* Blob — fly-in from main screen position */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 31, pointerEvents: 'none',
-        transform: `scale(${blobScale.toFixed(4)})`,
         transformOrigin: `${DETAIL_BLOB_CENTER[0]}px ${DETAIL_BLOB_CENTER[1]}px`,
-        filter: blobBright < 0.999 ? `brightness(${blobBright.toFixed(3)})` : undefined,
+        transform: blobFlyTransform,
+        transition: blobFlyTransition,
       }}>
-        <GlslBlobCanvas hue={(liveHue - 18 + 360) % 360} offsetY={80} useBgC2 brightness={0.65} saturate={1.7} opacity={0.65} />
-        <GlslBlobCanvas hue={liveHue} size={528} blur={10} />
-        <GlslBlobCanvas hue={(liveHue + 14) % 360} size={280} blur={5} brightness={0.8} fixedHue strongBreathe />
-        <GlslBlobCanvas hue={(liveHue + 14) % 360} size={160} blur={18} brightness={0.8} fixedHue noBreath />
-        {/* Bright core — screen blend to lighten the dark center spot */}
         <div style={{
-          position: 'absolute',
-          left: DETAIL_BLOB_CENTER[0] - 52, top: DETAIL_BLOB_CENTER[1] - 52,
-          width: 104, height: 104, borderRadius: '50%',
-          background: `radial-gradient(circle, hsl(${liveHue},50%,90%) 0%, hsl(${liveHue},60%,78%) 40%, transparent 80%)`,
-          filter: 'blur(18px)',
-          mixBlendMode: 'screen',
-          opacity: 0.41,
-          pointerEvents: 'none',
-        }} />
+          position: 'absolute', inset: 0,
+          transformOrigin: `${DETAIL_BLOB_CENTER[0]}px ${DETAIL_BLOB_CENTER[1]}px`,
+          transform: `scale(${blobScale.toFixed(4)})`,
+          filter: blobBright < 0.999 ? `brightness(${blobBright.toFixed(3)})` : undefined,
+          transition: 'transform 0.12s ease, filter 0.12s ease',
+        }}>
+          <GlslBlobCanvas hue={(liveHue - 18 + 360) % 360} offsetY={80} useBgC2 brightness={0.65} saturate={1.7} opacity={0.65} />
+          <GlslBlobCanvas hue={liveHue} size={528} blur={10} />
+          <GlslBlobCanvas hue={(liveHue + 14) % 360} size={280} blur={5} brightness={0.8} fixedHue strongBreathe />
+          <GlslBlobCanvas hue={(liveHue + 14) % 360} size={160} blur={18} brightness={0.8} fixedHue noBreath />
+          {/* Bright core */}
+          <div style={{
+            position: 'absolute',
+            left: DETAIL_BLOB_CENTER[0] - 52, top: DETAIL_BLOB_CENTER[1] - 52,
+            width: 104, height: 104, borderRadius: '50%',
+            background: `radial-gradient(circle, hsl(${liveHue},50%,90%) 0%, hsl(${liveHue},60%,78%) 40%, transparent 80%)`,
+            filter: 'blur(18px)',
+            mixBlendMode: 'screen',
+            opacity: 0.41,
+            pointerEvents: 'none',
+          }} />
+        </div>
       </div>
       {effectMounted && (
         <div style={{
@@ -2978,8 +2833,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
       <div className="relative overflow-hidden" style={{ width: W, height: H, background: "#17171C", borderRadius: 65 }} onPointerDown={handleFlare} onClick={handleBlobClick} onMouseMove={handleMouseMove}>
-        <CSSBlobsV1 sceneIdx={safeSceneIdx} groupBrightness={groupBrightness as [number, number, number]} groupCustomHues={groupCustomHues} groupSaturations={groupSaturations} />
-        <ShaderBlobV2 />
+        <MainBlobsWebGL sceneIdx={safeSceneIdx} groupBrightness={groupBrightness as [number, number, number]} groupCustomHues={groupCustomHues} hideBlobGroup={detailLight2?.blobGroup ?? null} />
         {false && <div style={{
           position: 'absolute', left: 0, right: 0, top: 0, height: '73%', zIndex: 2, pointerEvents: 'none',
           opacity: cursorActive ? 1 : 0,
@@ -3953,19 +3807,21 @@ function SceneScheduleSheet({ activeScene, onClose, onConfirm, onTurnOffAll }: {
 }
 
 function Controls({ onOverview, onSchedule }: { onOverview: () => void; onSchedule: () => void }) {
-  const glassBase: React.CSSProperties = {
-    backdropFilter: 'blur(24px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-    border: 'none',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 10px rgba(0,0,0,0.22)',
+  const btnStyle: React.CSSProperties = {
+    position: 'absolute', top: 0,
+    width: 44, height: 44, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(255,255,255,0.10)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: 'none', outline: 'none', boxShadow: 'none',
     cursor: 'pointer',
   };
   const iconColor = 'rgba(255,255,255,0.82)';
   return (
     <div style={{ position: 'absolute', left: 0, top: 65, width: 402, height: 44, zIndex: 20 }} onPointerDown={e => e.stopPropagation()}>
 
-      {/* Left — 44×44 circle, 16px from left edge */}
-      <button onClick={onOverview} style={{ ...glassBase, position: 'absolute', left: 16, top: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,200,220,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <button onClick={onOverview} style={{ ...btnStyle, left: 16 }}>
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect x="0"   y="0"   width="7.5" height="7.5" rx="2.2" fill={iconColor} />
           <rect x="10.5" y="0"  width="7.5" height="7.5" rx="2.2" fill={iconColor} />
@@ -3974,13 +3830,11 @@ function Controls({ onOverview, onSchedule }: { onOverview: () => void; onSchedu
         </svg>
       </button>
 
-      {/* Center — true center of screen */}
       <span style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 600, color: 'rgba(255,255,255,0.92)', letterSpacing: '-0.2px', pointerEvents: 'none' }}>
         Гостиная
       </span>
 
-      {/* Right — single round button with sun icon */}
-      <button onClick={onSchedule} style={{ ...glassBase, position: 'absolute', right: 16, top: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,200,220,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+      <button onClick={onSchedule} style={{ ...btnStyle, right: 16 }}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <circle cx="10" cy="10" r="3.2" fill={iconColor} />
           <line x1="10" y1="0.5"  x2="10" y2="4"   stroke={iconColor} strokeWidth="1.6" strokeLinecap="round" />
@@ -4116,11 +3970,11 @@ function BottomTray({ activeScene, logPos, onSceneChange, onNewStyle, sceneCusto
             alignItems:           "center",
             gap:                  10,
             borderRadius:         22,
-            background:           "rgba(255,200,220,0.10)",
-            border:               "0.5px solid rgba(255,255,255,0.18)",
-            backdropFilter:       "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            boxShadow:            "inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 10px rgba(0,0,0,0.22)",
+            background:           "rgba(255,255,255,0.10)",
+            border:               "none",
+            backdropFilter:       "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            boxShadow:            "none",
             color:                "rgba(255,255,255,0.88)",
             cursor:               "pointer",
           }}
