@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import dynamic from 'next/dynamic';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ const SCENES: SceneDef[] = [
 
 
 const W = 402;
-const H = 874;
+const H = 834;
 
 // ── CSS blob layers ───────────────────────────────────────────────────────────
 
@@ -1020,17 +1021,22 @@ const LAYER_META: { blobGroup: 0|1|2; ox: number; oy: number }[] = [
   { blobGroup: 0, ox: 120, oy: 423 },
 ];
 
-function CSSBlobs({ sceneIdx, groupBrightness }: { sceneIdx: number; groupBrightness: [number, number, number] }) {
-  const blobFilter = sceneIdx === 3
-    ? 'saturate(1.04) contrast(1.1)'
-    : 'saturate(1.3) contrast(1.1)';
-
-  const allLayers = getSceneLayers(sceneIdx);
-  const groups = [
-    allLayers.slice(0, BLOB_LAYER_SPLIT[0]),
-    allLayers.slice(BLOB_LAYER_SPLIT[0], BLOB_LAYER_SPLIT[1]),
-    allLayers.slice(BLOB_LAYER_SPLIT[1]),
-  ];
+function CSSBlobsV1({ sceneIdx, groupBrightness, groupCustomHues, groupSaturations }: {
+  sceneIdx: number;
+  groupBrightness: [number, number, number];
+  groupCustomHues: (number | null)[];
+  groupSaturations: (number | null)[];
+}) {
+  const scenePalettes = SCENE_CARD_PALETTES[sceneIdx] ?? SCENE_CARD_PALETTES[0];
+  const groups = LAYER_META.map(({ blobGroup }) => {
+    const ch = groupCustomHues[blobGroup];
+    const palette = ch !== null && ch !== undefined
+      ? hueToPalette(ch, (groupSaturations[blobGroup] ?? 72) / 100)
+      : scenePalettes[blobGroup];
+    const dx = BLOB_CORE_CENTERS[blobGroup][0] - DETAIL_BLOB_CENTER[0];
+    const dy = BLOB_CORE_CENTERS[blobGroup][1] - DETAIL_BLOB_CENTER[1];
+    return buildDetailLayers(palette).map(l => ({ ...l, x: l.x + dx, y: l.y + dy }));
+  });
 
   const hoverRef           = useRef([0, 0, 0]);
   const groupRefs          = useRef<(HTMLDivElement | null)[]>([null, null, null]);
@@ -1038,12 +1044,17 @@ function CSSBlobs({ sceneIdx, groupBrightness }: { sceneIdx: number; groupBright
   const cursorRef          = useRef({ x: -9999, y: -9999 });
   const groupBrightnessRef = useRef(groupBrightness);
   groupBrightnessRef.current = groupBrightness;
+  const groupCustomHuesRef   = useRef(groupCustomHues);
+  groupCustomHuesRef.current = groupCustomHues;
+  const groupSaturationsRef  = useRef(groupSaturations);
+  groupSaturationsRef.current = groupSaturations;
+  const defaultSat = sceneIdx === 3 ? 1.04 : 1.3;
 
   useEffect(() => {
     let rafId = 0;
     const RADIUS = 130;
-    const RISE   = 0.08;   // ~0.2 s to full
-    const FALL   = 0.016;  // ~1.0 s to clear
+    const RISE   = 0.08;
+    const FALL   = 0.016;
 
     const onMove = (e: MouseEvent) => {
       const r = containerRef.current?.parentElement?.getBoundingClientRect();
@@ -1062,11 +1073,16 @@ function CSSBlobs({ sceneIdx, groupBrightness }: { sceneIdx: number; groupBright
 
         const div = groupRefs.current[gi];
         if (!div) return;
-        const h    = hoverRef.current[gi];
+        const h      = hoverRef.current[gi];
         const baseBr = groupBrightnessRef.current[blobGroup];
         const brStr  = baseBr < 0.999 ? `brightness(${baseBr.toFixed(3)}) ` : '';
-        if (h < 0.002) { div.style.filter = brStr.trim(); div.style.transform = ''; return; }
-        div.style.filter    = `${brStr}saturate(${(1 + 0.18 * h).toFixed(3)}) brightness(${(1 + 0.07 * h).toFixed(3)})`;
+        const ch     = groupCustomHuesRef.current[blobGroup];
+        const satVal = ch !== null && ch !== undefined
+          ? lerp(0, 2, (groupSaturationsRef.current[blobGroup] ?? 72) / 100)
+          : defaultSat;
+        const satStr = `saturate(${satVal.toFixed(3)}) `;
+        if (h < 0.002) { div.style.filter = (satStr + brStr).trim(); div.style.transform = ''; return; }
+        div.style.filter    = `${satStr}${brStr}saturate(${(1 + 0.18 * h).toFixed(3)}) brightness(${(1 + 0.07 * h).toFixed(3)})`;
         div.style.transform = `scale(${(1 + 0.08 * h).toFixed(4)})`;
       });
       rafId = requestAnimationFrame(tick);
@@ -1085,7 +1101,7 @@ function CSSBlobs({ sceneIdx, groupBrightness }: { sceneIdx: number; groupBright
   return (
     <div
       ref={containerRef}
-      style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: blobFilter, transform: 'translateY(-40px) scale(0.9)', transformOrigin: 'center center' }}
+      style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none', filter: 'contrast(1.1)' }}
     >
       {groups.map((layers, gi) => (
         <div
@@ -1116,6 +1132,388 @@ function CSSBlobs({ sceneIdx, groupBrightness }: { sceneIdx: number; groupBright
   );
 }
 
+// ── Blob V2 ──────────────────────────────────────────────────────────────────
+
+const BLOB_V2_CENTER = [225, 231] as const;
+const BLOB_V2_SIZE   = 580;
+
+const ShaderBlobV2 = dynamic(
+  () => import('shaders/react').then(({
+    Shader: SShader,
+    MultiPointGradient: SMPG,
+    WaveDistortion: SWave,
+    Bulge: SBulge,
+    Paper: SPaper,
+    ChromaticAberration: SCA,
+  }) => {
+    function ShaderBlobV2Impl() {
+      const half = BLOB_V2_SIZE / 2;
+      const mask = 'radial-gradient(circle, black 8%, rgba(0,0,0,0.55) 22%, rgba(0,0,0,0.08) 38%, transparent 48%)';
+      return (
+        <div style={{
+          position: 'absolute',
+          left: BLOB_V2_CENTER[0] - half,
+          top:  BLOB_V2_CENTER[1] - half,
+          width: BLOB_V2_SIZE,
+          height: BLOB_V2_SIZE,
+          maskImage: mask,
+          WebkitMaskImage: mask,
+          pointerEvents: 'none',
+          zIndex: 1,
+        }}>
+          <SShader style={{ position: 'absolute', inset: 0 }}>
+            <SMPG
+              colorA="#ffeedd"
+              colorB="#ff6633"
+              colorC="#ff4422"
+              colorD="#ff7744"
+              colorE="#ff5533"
+              positionA={{
+                type: 'mouse-position' as const,
+                originX: 0.5,
+                originY: 0.5,
+                momentum: 0.1,
+                smoothing: 0.95,
+                reach: 0.06,
+              }}
+              smoothness={4}
+              positionB={{
+                type: 'mouse-position' as const,
+                originX: 0.78,
+                originY: 0.72,
+                momentum: 0.2,
+                smoothing: 0.85,
+                reach: 0.18,
+              }}
+              positionC={{
+                type: 'mouse-position' as const,
+                originX: 0.22,
+                originY: 0.74,
+                momentum: 0.2,
+                smoothing: 0.82,
+                reach: 0.16,
+              }}
+              positionD={{
+                type: 'mouse-position' as const,
+                originX: 0.50,
+                originY: 0.20,
+                momentum: 0.25,
+                smoothing: 0.80,
+                reach: 0.20,
+              }}
+              positionE={{
+                type: 'mouse-position' as const,
+                originX: 0.82,
+                originY: 0.26,
+                momentum: 0.18,
+                smoothing: 0.88,
+                reach: 0.15,
+              }}
+            />
+            <SWave
+              angle={264}
+              frequency={0.7}
+              speed={0.45}
+              waveType="triangle"
+              strength={0.3}
+            />
+            <SBulge
+              center={{
+                type: 'mouse-position' as const,
+                originX: 0.5,
+                originY: 0.5,
+                momentum: 0.15,
+                smoothing: 0.9,
+                reach: 0.14,
+              }}
+              falloff={0.85}
+              radius={0.75}
+              strength={0.55}
+            />
+            <SPaper displacement={0.9} grainScale={3} roughness={0.1} />
+            <SCA />
+          </SShader>
+        </div>
+      );
+    }
+    return { default: ShaderBlobV2Impl };
+  }),
+  { ssr: false }
+);
+
+// ── ShaderDetailBg — ambient shader for SourceDetailScreen ───────────────────
+
+const ShaderDetailBg = dynamic(
+  () => import('shaders/react').then(({
+    Shader: SShader,
+    Aurora: SAurora,
+    LensFlare: SLensFlare,
+    FilmGrain: SFG,
+  }) => {
+    function ShaderDetailBgImpl({ hue }: { hue: number }) {
+      const colorA = hslToRgb(hue - 30, 90, 55);
+      const colorB = hslToRgb(hue,      100, 68);
+      const colorC = hslToRgb(hue + 30, 90, 60);
+      return (
+        <SShader style={{ position: 'absolute', inset: 0 }}>
+          <SAurora
+            colorA={colorA}
+            colorB={colorB}
+            colorC={colorC}
+            colorSpace="oklab"
+            curtainCount={3}
+            intensity={90}
+            waviness={65}
+            rayDensity={15}
+            height={150}
+            speed={3}
+            center={{
+              type: 'mouse-position' as const,
+              originX: 0.5,
+              originY: 0.5,
+              reach: 0.28,
+              smoothing: 0.82,
+              momentum: 0.2,
+            }}
+            blendMode="screen"
+          />
+          <SLensFlare
+            lightPosition={{
+              type: 'mouse-position' as const,
+              originX: 0.5,
+              originY: 0.38,
+              reach: 0.4,
+              smoothing: 0.72,
+              momentum: 0.3,
+            }}
+            intensity={0.55}
+            ghostIntensity={0.45}
+            ghostChroma={0.7}
+            haloIntensity={0.5}
+            haloChroma={0.85}
+            haloSoftness={0.9}
+            starburstIntensity={0.35}
+            starburstPoints={6}
+            streakIntensity={0.18}
+            glareIntensity={0.28}
+            glareSize={0.5}
+            speed={0.5}
+            blendMode="screen"
+          />
+          <SFG />
+        </SShader>
+      );
+    }
+    return { default: ShaderDetailBgImpl };
+  }),
+  { ssr: false }
+);
+
+// ── ShaderDetailCA — chromatic aberration overlay for SourceDetailScreen ────────
+
+const DETAIL_CA_SIZE = 480;
+
+const ShaderDetailCA = dynamic(
+  () => import('shaders/react').then(({
+    Shader: SShader,
+    MultiPointGradient: SMPG,
+    ChromaticAberration: SCA,
+  }) => {
+    function ShaderDetailCAImpl({ hue, saturation }: { hue: number; saturation: number }) {
+      const colorA = hslToRgb(hue,       33 * saturation, 68);
+      const colorB = hslToRgb(hue - 28,  33 * saturation, 58);
+      const colorC = hslToRgb(hue + 32,  32 * saturation, 54);
+      const colorD = hslToRgb(hue - 55,  29 * saturation, 46);
+      const colorE = hslToRgb(hue + 60,  27 * saturation, 42);
+      const half = DETAIL_CA_SIZE / 2;
+      const mask = 'radial-gradient(circle, black 10%, rgba(0,0,0,0.6) 28%, rgba(0,0,0,0.1) 50%, transparent 65%)';
+      return (
+        <div style={{
+          position: 'absolute',
+          left: DETAIL_BLOB_CENTER[0] - half,
+          top:  DETAIL_BLOB_CENTER[1] - half,
+          width: DETAIL_CA_SIZE,
+          height: DETAIL_CA_SIZE,
+          maskImage: mask,
+          WebkitMaskImage: mask,
+          mixBlendMode: 'screen',
+          opacity: 0.33,
+          filter: `saturate(${(saturation * 2).toFixed(2)})`,
+          pointerEvents: 'none',
+        }}>
+          <SShader style={{ position: 'absolute', inset: 0 }}>
+            <SMPG
+              colorA={colorA}
+              colorB={colorB}
+              colorC={colorC}
+              colorD={colorD}
+              colorE={colorE}
+              smoothness={3}
+              positionA={{ type: 'mouse-position' as const, originX: 0.5,  originY: 0.5,  momentum: 0.1,  smoothing: 0.92, reach: 0.06 }}
+              positionB={{ type: 'mouse-position' as const, originX: 0.34, originY: 0.38, momentum: 0.2,  smoothing: 0.85, reach: 0.22 }}
+              positionC={{ type: 'mouse-position' as const, originX: 0.66, originY: 0.40, momentum: 0.2,  smoothing: 0.82, reach: 0.20 }}
+              positionD={{ type: 'mouse-position' as const, originX: 0.3,  originY: 0.72, momentum: 0.24, smoothing: 0.80, reach: 0.18 }}
+              positionE={{ type: 'mouse-position' as const, originX: 0.7,  originY: 0.70, momentum: 0.18, smoothing: 0.88, reach: 0.16 }}
+            />
+            <SCA strength={0.5} angle={hue} redOffset={-1} greenOffset={0} blueOffset={1} />
+          </SShader>
+        </div>
+      );
+    }
+    return { default: ShaderDetailCAImpl };
+  }),
+  { ssr: false }
+);
+
+// ── ShaderDetailBlob — organic morphing blob overlay for SourceDetailScreen ───
+
+const DETAIL_BLOB_SHADER_SIZE = 520;
+
+const ShaderDetailBlob = dynamic(
+  () => import('shaders/react').then(({ Shader: SShader, Blob: SBlob }) => {
+    function ShaderDetailBlobImpl({ hue, saturation }: { hue: number; saturation: number }) {
+      const colorA = hslToRgb(hue,      88 * saturation, 58);
+      const colorB = hslToRgb(hue + 30, 80 * saturation, 46);
+      const half = DETAIL_BLOB_SHADER_SIZE / 2;
+      const mask = 'radial-gradient(circle, black 18%, rgba(0,0,0,0.5) 42%, rgba(0,0,0,0.08) 62%, transparent 75%)';
+      return (
+        <div style={{
+          position: 'absolute',
+          left: DETAIL_BLOB_CENTER[0] - half,
+          top:  DETAIL_BLOB_CENTER[1] - half,
+          width: DETAIL_BLOB_SHADER_SIZE,
+          height: DETAIL_BLOB_SHADER_SIZE,
+          maskImage: mask,
+          WebkitMaskImage: mask,
+          mixBlendMode: 'screen',
+          opacity: 0.45,
+          filter: `saturate(${(saturation * 2).toFixed(2)})`,
+          pointerEvents: 'none',
+        }}>
+          <SShader style={{ position: 'absolute', inset: 0 }}>
+            <SBlob
+              colorA={colorA}
+              colorB={colorB}
+              size={0.72}
+              deformation={0.58}
+              softness={0.65}
+              speed={0.28}
+              highlightIntensity={0.3}
+              seed={42}
+            />
+          </SShader>
+        </div>
+      );
+    }
+    return { default: ShaderDetailBlobImpl };
+  }),
+  { ssr: false }
+);
+
+// ── ShaderDetailGrain — subtle film grain for SourceDetailScreen ─────────────
+
+const ShaderDetailGrain = dynamic(
+  () => import('shaders/react').then(({ Shader: SShader, FilmGrain: SFG }) => {
+    function ShaderDetailGrainImpl() {
+      return (
+        <SShader style={{ position: 'absolute', inset: 0 }}>
+          <SFG strength={0.22} bias={1} animated />
+        </SShader>
+      );
+    }
+    return { default: ShaderDetailGrainImpl };
+  }),
+  { ssr: false }
+);
+
+// ── Shader glass overlay (Glass + Swirl + CursorRipples, scene-reactive) ──────
+
+const ShaderOverlay = dynamic(
+  () => import('shaders/react').then(({
+    Blob: SBlob,
+    ChromaticAberration: SCA,
+    CursorRipples: SCursorRipples,
+    FilmGrain: SFilmGrain,
+    Glass: SGlass,
+    Shader: SShader,
+    Swirl: SSwirl,
+  }) => {
+    function ShaderOverlayImpl({ sceneIdx, cursorColorA, cursorColorB, caAngle, caRed, caGreen, caBlue }: {
+      sceneIdx: number;
+      cursorColorA: string;
+      cursorColorB: string;
+      caAngle: number;
+      caRed: number;
+      caGreen: number;
+      caBlue: number;
+    }) {
+      const scene = SCENES[sceneIdx];
+      const [r1, g1, b1] = scene.blobs[2].rim;
+      const [r2, g2, b2] = scene.blobs[0].halo;
+      const sceneColorA = `rgb(${r1},${g1},${b1})`;
+      const sceneColorB = `rgb(${r2},${g2},${b2})`;
+      return (
+        <SShader style={{ position: 'absolute', inset: 0 }}>
+          <SGlass
+            cutout={false}
+            edgeSoftness={0.55}
+            fresnel={0.06}
+            fresnelColor={sceneColorA}
+            fresnelSoftness={0.4}
+            highlight={0.07}
+            highlightColor={sceneColorB}
+            highlightSoftness={0.3}
+            lightAngle={289}
+            refraction={0.2}
+            scale={1.8}
+            thickness={0.2}
+            opacity={0.45}
+            visible={true}
+          >
+            <SSwirl
+              blend={45}
+              colorA={sceneColorA}
+              colorB={sceneColorB}
+              colorSpace="oklab"
+              detail={3.5}
+              speed={0.05}
+              opacity={0.1}
+            />
+            <SBlob
+              blendMode="linearDodge"
+              center={{
+                type: 'mouse-position' as const,
+                reach: 0.55,
+                originX: 0.5,
+                originY: 0.5,
+                momentum: 0.3,
+                smoothing: 0.3,
+              }}
+              colorA={cursorColorA}
+              colorB={cursorColorB}
+              highlightIntensity={0}
+              deformation={0.9}
+              size={0.09}
+              softness={0.7}
+            />
+            <SCA strength={0.65} angle={caAngle} redOffset={caRed} greenOffset={caGreen} blueOffset={caBlue} />
+            <SCursorRipples
+              chromaticSplit={6}
+              decay={5}
+              intensity={20}
+              radius={0.5}
+              visible={true}
+            />
+          </SGlass>
+          <SFilmGrain strength={0.04} visible={true} />
+        </SShader>
+      );
+    }
+    return { default: ShaderOverlayImpl };
+  }),
+  { ssr: false }
+);
+
 // ── Source detail screen ──────────────────────────────────────────────────────
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.max(0, Math.min(1, t));
@@ -1128,6 +1526,35 @@ function hslToRgb(h: number, s: number, l: number): string {
   return `rgb(${f(0)},${f(8)},${f(4)})`;
 }
 
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l * 100];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? ((g - b) / d + (g < b ? 6 : 0)) / 6
+          : max === g ? ((b - r) / d + 2) / 6
+                      : ((r - g) / d + 4) / 6;
+  return [h * 360, s * 100, l * 100];
+}
+
+function hueToRgbNums(hue: number): [number, number, number] {
+  const h = ((hue % 360) + 360) % 360;
+  const k = (n: number) => (n + h / 30) % 12;
+  const f = (n: number) => Math.round((0.5 - 0.5 * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))) * 255);
+  return [f(0), f(8), f(4)];
+}
+
+function analogousOffsets(hue: number): [number, number, number] {
+  const SPREAD = 28;
+  const [rp, gp, bp] = hueToRgbNums(hue + SPREAD);
+  const [rm, gm, bm] = hueToRgbNums(hue - SPREAD);
+  const dr = rp - rm, dg = gp - gm, db = bp - bm;
+  const maxD = Math.max(Math.abs(dr), Math.abs(dg), Math.abs(db)) || 1;
+  return [dr / maxD, dg / maxD, db / maxD];
+}
+
 function rgbToHue(rgb: string): number {
   const m = rgb.match(/\d+/g);
   if (!m || m.length < 3) return 0;
@@ -1138,13 +1565,13 @@ function rgbToHue(rgb: string): number {
   return Math.round(h * 60);
 }
 
-function hueToPalette(h: number): CardPalette {
+function hueToPalette(h: number, sat = 1): CardPalette {
   return {
-    fog:  hslToRgb(h, 100, 48),
-    glow: hslToRgb(h, 100, 50),
+    fog:  hslToRgb(h, 100 * sat, 48),
+    glow: hslToRgb(h, 100 * sat, 50),
     core: 'rgb(255,238,155)',
-    ab1:  hslToRgb(h - 40, 90, 42),
-    ab2:  hslToRgb(h + 15, 80, 62),
+    ab1:  hslToRgb(h - 40, 90 * sat, 42),
+    ab2:  hslToRgb(h + 15, 80 * sat, 62),
   };
 }
 
@@ -1152,14 +1579,19 @@ function hueToPalette(h: number): CardPalette {
 const DETAIL_BLOB_CENTER: [number, number] = [205, 285];
 
 function SourceDetailScreen({
-  light, sceneIdx, onClose, onSave, fromCardRect,
+  light, sceneIdx, onClose, onSave, fromCardRect, onBrightnessChange, onHueChange, onToggle, hideBlob,
 }: {
   light: LightSource;
   sceneIdx: number;
   onClose: () => void;
   onSave: (updates: SceneLightSettings) => void;
   fromCardRect?: DOMRect;
+  onBrightnessChange?: (b: number) => void;
+  onHueChange?: (hue: number) => void;
+  onToggle?: () => void;
+  hideBlob?: boolean;
 }) {
+  const [isOn, setIsOn] = useState(light.on);
   const [phase, setPhase] = useState<'entering' | 'open' | 'exiting'>('entering');
 
   useEffect(() => {
@@ -1171,65 +1603,253 @@ function SourceDetailScreen({
   }, []);
 
   const handleClose = () => {
-    setPhase('exiting');
-    setTimeout(onClose, fromCardRect ? 260 : 620);
+    setTimeout(() => {
+      setPhase('exiting');
+      setTimeout(onClose, fromCardRect ? 260 : 620);
+    }, 500);
   };
 
   const scenePalette = (SCENE_CARD_PALETTES[sceneIdx] ?? SCENE_CARD_PALETTES[0])[light.blobGroup];
   const sceneData = light.sceneSettings?.[sceneIdx];
   const initBrightness = (sceneData?.brightness ?? light.brightness) / 100;
-  const initHue = sceneData?.customHue ?? rgbToHue(scenePalette.fog);
+  const initHue = ((Math.round((sceneData?.customHue ?? rgbToHue(scenePalette.fog)) / 2) * 2) % 360 + 360) % 360;
   const initSaturation = (sceneData?.customSaturation ?? 72) / 100;
+  const [saturation, setSaturation] = useState(initSaturation);
+  const saturationRef = useRef(initSaturation);
+
+  const [grabberDrag, setGrabberDrag] = useState(0); // px pulled down
+  const grabberDragRef = useRef(0);
+  const grabberActive  = useRef(false);
+  const grabberStartY  = useRef(0);
+  const grabberSnapRAF = useRef<number | null>(null);
+
+  const onGrabberDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    grabberActive.current = true;
+    grabberStartY.current = e.clientY;
+    grabberDragRef.current = 0;
+    if (grabberSnapRAF.current !== null) { cancelAnimationFrame(grabberSnapRAF.current); grabberSnapRAF.current = null; }
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const onGrabberMove = useCallback((e: React.PointerEvent) => {
+    if (!grabberActive.current) return;
+    const dy = Math.max(0, e.clientY - grabberStartY.current);
+    grabberDragRef.current = dy;
+    setGrabberDrag(dy);
+  }, []);
+
+  const onGrabberUp = useCallback(() => {
+    if (!grabberActive.current) return;
+    grabberActive.current = false;
+    if (grabberDragRef.current > 80) {
+      handleClose();
+      return;
+    }
+    // Snap back
+    const snap = () => {
+      const cur = grabberDragRef.current;
+      if (cur < 1) { grabberDragRef.current = 0; setGrabberDrag(0); grabberSnapRAF.current = null; return; }
+      const next = cur * 0.75;
+      grabberDragRef.current = next;
+      setGrabberDrag(next);
+      grabberSnapRAF.current = requestAnimationFrame(snap);
+    };
+    grabberSnapRAF.current = requestAnimationFrame(snap);
+  }, [handleClose]);
 
   const [brightness, setBrightness] = useState(initBrightness);
-  const brightDrag = useRef({ active: false, startY: 0, startVal: initBrightness });
-  const [saturation, setSaturation] = useState(initSaturation);
-  const satDrag = useRef({ active: false, startY: 0, startVal: initSaturation });
+  const brightnessRef  = useRef(initBrightness);
+  const brightDrag     = useRef({ active: false, startY: 0, startVal: initBrightness });
+  const brightSamples  = useRef<Array<{ y: number; t: number }>>([]);
+  const brightInertia  = useRef<number | null>(null);
+
+  const cancelBrightInertia = useCallback(() => {
+    if (brightInertia.current !== null) {
+      cancelAnimationFrame(brightInertia.current);
+      brightInertia.current = null;
+    }
+  }, []);
+  useEffect(() => () => cancelBrightInertia(), [cancelBrightInertia]);
 
   const onBrightDown = useCallback((e: React.PointerEvent) => {
-    brightDrag.current = { active: true, startY: e.clientY, startVal: brightness };
+    cancelBrightInertia();
+    brightDrag.current = { active: true, startY: e.clientY, startVal: brightnessRef.current };
+    brightSamples.current = [{ y: e.clientY, t: performance.now() }];
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, [brightness]);
+  }, [cancelBrightInertia]);
 
   const onBrightMove = useCallback((e: React.PointerEvent) => {
     if (!brightDrag.current.active) return;
     const dy = e.clientY - brightDrag.current.startY;
-    setBrightness(Math.max(0, Math.min(1, brightDrag.current.startVal + dy / 180)));
-  }, []);
+    const next = Math.max(0, Math.min(1, brightDrag.current.startVal + dy / 420));
+    brightnessRef.current = next;
+    setBrightness(next);
+    onBrightnessChange?.(next);
+    const s = brightSamples.current;
+    s.push({ y: e.clientY, t: performance.now() });
+    if (s.length > 8) s.shift();
+  }, [onBrightnessChange]);
 
-  const onBrightUp = useCallback(() => { brightDrag.current.active = false; }, []);
+  const onBrightUp = useCallback(() => {
+    if (!brightDrag.current.active) return;
+    brightDrag.current.active = false;
+    const SNAP = 0.05;
+    const runSnap = () => {
+      const raw    = brightnessRef.current;
+      const target = Math.max(0, Math.min(1, Math.round(raw / SNAP) * SNAP));
+      const step = () => {
+        const diff = target - brightnessRef.current;
+        if (Math.abs(diff) < 0.002) {
+          brightnessRef.current = target; setBrightness(target); onBrightnessChange?.(target);
+          brightInertia.current = null; return;
+        }
+        const next = Math.max(0, Math.min(1, brightnessRef.current + diff * 0.18));
+        brightnessRef.current = next; setBrightness(next); onBrightnessChange?.(next);
+        brightInertia.current = requestAnimationFrame(step);
+      };
+      brightInertia.current = requestAnimationFrame(step);
+    };
+    const now    = performance.now();
+    const recent = brightSamples.current.filter(s => now - s.t < 80);
+    if (recent.length < 2) { runSnap(); return; }
+    const dt = recent[recent.length - 1].t - recent[0].t;
+    const dy = recent[recent.length - 1].y - recent[0].y;
+    if (dt < 4 || Math.abs(dy) < 2) { runSnap(); return; }
+    let vel = Math.max(-0.014, Math.min(0.014, (dy / dt) / 420));
+    if (Math.abs(vel) < 0.0003) { runSnap(); return; }
+    let last = performance.now();
+    const tick = (t: number) => {
+      const elapsed = Math.min(t - last, 64);
+      last = t;
+      vel *= Math.pow(0.93, elapsed / 16);
+      if (Math.abs(vel) < 0.0003) { runSnap(); return; }
+      const next = Math.max(0, Math.min(1, brightnessRef.current + vel * elapsed));
+      brightnessRef.current = next; setBrightness(next); onBrightnessChange?.(next);
+      brightInertia.current = requestAnimationFrame(tick);
+    };
+    brightInertia.current = requestAnimationFrame(tick);
+  }, [onBrightnessChange]);
+
+  const satSnapRAF = useRef<number | null>(null);
+  const satDrag    = useRef({ active: false, startY: 0, startVal: initSaturation });
 
   const onSatDown = useCallback((e: React.PointerEvent) => {
-    satDrag.current = { active: true, startY: e.clientY, startVal: saturation };
+    if (satSnapRAF.current !== null) { cancelAnimationFrame(satSnapRAF.current); satSnapRAF.current = null; }
+    satDrag.current = { active: true, startY: e.clientY, startVal: saturationRef.current };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, [saturation]);
+  }, []);
 
   const onSatMove = useCallback((e: React.PointerEvent) => {
     if (!satDrag.current.active) return;
-    const dy = e.clientY - satDrag.current.startY;
-    setSaturation(Math.max(0, Math.min(1, satDrag.current.startVal - dy / 80)));
+    const dy   = e.clientY - satDrag.current.startY;
+    const next = Math.max(0, Math.min(1, satDrag.current.startVal + dy / 260));
+    saturationRef.current = next; setSaturation(next);
   }, []);
 
-  const onSatUp = useCallback(() => { satDrag.current.active = false; }, []);
-
-  // Restart arc breathing animation each time the screen opens
-  const [arcAnimKey, setArcAnimKey] = useState(0);
-  useEffect(() => {
-    if (phase === 'open') setArcAnimKey(k => k + 1);
-  }, [phase]);
+  const onSatUp = useCallback(() => {
+    if (!satDrag.current.active) return;
+    satDrag.current.active = false;
+    const SNAP   = 0.05;
+    const target = Math.max(0, Math.min(1, Math.round(saturationRef.current / SNAP) * SNAP));
+    const snap   = () => {
+      const diff = target - saturationRef.current;
+      if (Math.abs(diff) < 0.002) { saturationRef.current = target; setSaturation(target); satSnapRAF.current = null; return; }
+      saturationRef.current += diff * 0.18; setSaturation(saturationRef.current);
+      satSnapRAF.current = requestAnimationFrame(snap);
+    };
+    satSnapRAF.current = requestAnimationFrame(snap);
+  }, []);
 
   const [hue, setHue] = useState(initHue);
-  const stripRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
+  const hueRef    = useRef(initHue);
+  const dialDrag  = useRef({ active: false, startX: 0, startHue: initHue });
+  const dialSamples = useRef<Array<{ x: number; t: number }>>([]);
+  const inertiaRAF  = useRef<number | null>(null);
 
-  const applyHue = useCallback((clientX: number) => {
-    if (!stripRef.current) return;
-    const { left, width } = stripRef.current.getBoundingClientRect();
-    setHue(Math.round(Math.max(0, Math.min(360, ((clientX - left) / width) * 360))));
+  const cancelInertia = useCallback(() => {
+    if (inertiaRAF.current !== null) {
+      cancelAnimationFrame(inertiaRAF.current);
+      inertiaRAF.current = null;
+    }
   }, []);
+  useEffect(() => () => cancelInertia(), [cancelInertia]);
 
-  const activePalette = hueToPalette(hue);
+  const onDialDown = useCallback((e: React.PointerEvent) => {
+    cancelInertia();
+    dialDrag.current    = { active: true, startX: e.clientX, startHue: hueRef.current };
+    dialSamples.current = [{ x: e.clientX, t: performance.now() }];
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, [cancelInertia]);
+
+  const onDialMove = useCallback((e: React.PointerEvent) => {
+    if (!dialDrag.current.active) return;
+    const dx   = e.clientX - dialDrag.current.startX;
+    const next = ((dialDrag.current.startHue + dx * 0.55) % 360 + 360) % 360;
+    hueRef.current = next; setHue(next); onHueChange?.(next);
+    const s = dialSamples.current;
+    s.push({ x: e.clientX, t: performance.now() });
+    if (s.length > 8) s.shift();
+  }, [onHueChange]);
+
+  const onDialUp = useCallback(() => {
+    if (!dialDrag.current.active) return;
+    dialDrag.current.active = false;
+
+    const TICK_HUE = 2;
+    const runSnap = () => {
+      const raw    = hueRef.current;
+      const target = ((Math.round(raw / TICK_HUE) * TICK_HUE) % 360 + 360) % 360;
+      const snapTick = () => {
+        let diff = ((target - hueRef.current + 180 + 360) % 360) - 180;
+        if (Math.abs(diff) < 0.04) {
+          hueRef.current = target; setHue(target); onHueChange?.(target);
+          inertiaRAF.current = null; return;
+        }
+        const next = ((hueRef.current + diff * 0.15 + 360) % 360);
+        hueRef.current = next; setHue(next); onHueChange?.(next);
+        inertiaRAF.current = requestAnimationFrame(snapTick);
+      };
+      inertiaRAF.current = requestAnimationFrame(snapTick);
+    };
+
+    const now    = performance.now();
+    const recent = dialSamples.current.filter(s => now - s.t < 80);
+    if (recent.length < 2) { runSnap(); return; }
+    const dt = recent[recent.length - 1].t - recent[0].t;
+    const dx = recent[recent.length - 1].x - recent[0].x;
+    if (dt < 4 || Math.abs(dx) < 2) { runSnap(); return; }
+
+    let vel = Math.max(-1.8, Math.min(1.8, (dx / dt) * 0.55));
+    if (Math.abs(vel) < 0.025) { runSnap(); return; }
+
+    let last = performance.now();
+    const tick = (t: number) => {
+      const elapsed = Math.min(t - last, 64);
+      last = t;
+      vel *= Math.pow(0.92, elapsed / 16);
+      if (Math.abs(vel) < 0.008) { runSnap(); return; }
+      const next = ((hueRef.current + vel * elapsed) % 360 + 360) % 360;
+      hueRef.current = next; setHue(next); onHueChange?.(next);
+      inertiaRAF.current = requestAnimationFrame(tick);
+    };
+    inertiaRAF.current = requestAnimationFrame(tick);
+  }, [onHueChange]);
+
+  const activePalette = hueToPalette(hue, saturation);
   const layers = buildDetailLayers(activePalette);
+
+  const [cursorOff, setCursorOff] = useState({ x: 0, y: 0 });
+  const [cursorActive, setCursorActive] = useState(false);
+  const handleBlobCursorMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (phase !== 'open') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const xFrac = Math.max(-1, Math.min(1, (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)));
+    const yFrac = Math.max(-1, Math.min(1, (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)));
+    setCursorActive(true);
+    setCursorOff({ x: xFrac * 44, y: yFrac * 44 });
+  }, [phase]);
+
 
   // Blob starts at its position on the main screen, expands to fill detail screen
   const [fromX, fromY] = BLOB_CORE_CENTERS[light.blobGroup];
@@ -1260,29 +1880,58 @@ function SourceDetailScreen({
   const DEFAULT_B = 0.72;
   const tLow  = Math.max(0, Math.min(1, brightness / DEFAULT_B));
   const tHigh = Math.max(0, Math.min(1, (brightness - DEFAULT_B) / (1 - DEFAULT_B)));
-  const satMul = lerp(0.05, 1.6, saturation);
+  const satMul = lerp(0, 2, saturation);
   const blobFilter = `saturate(${satMul.toFixed(2)}) contrast(${lerp(0.65, 1.12, tLow).toFixed(2)}) brightness(${lerp(0.20, 1.0, tLow).toFixed(2)})`;
   const blobScale  = brightness <= DEFAULT_B ? lerp(0.50, 1.0, tLow) : lerp(1.0, 1.20, tHigh);
 
-  // Arc geometry — ARC_Y tracks the blob's gradient boundary
-  const ARC_CX   = 201;
-  const ARC_Y    = lerp(390, 580, brightness);
-  const arcHalfW = lerp(18, 152, brightness);
-  const arcSag   = lerp(8, 72, brightness);
 
   const glassCircle: React.CSSProperties = {
     width: 44, height: 44, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer',
-    backdropFilter: 'blur(24px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-    background: 'rgba(255,255,255,0.08)',
-    border: '0.5px solid rgba(255,255,255,0.18)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 10px rgba(0,0,0,0.22)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    background: 'transparent',
+    border: 'none', outline: 'none',
+    boxShadow: 'none',
   };
 
-  const initValRef = useRef({ brightness: initBrightness, hue: initHue, saturation: initSaturation });
-  const isDirty = brightness !== initValRef.current.brightness || hue !== initValRef.current.hue || saturation !== initValRef.current.saturation;
+  const initValRef = useRef({ brightness: initBrightness, hue: initHue });
+  const isDirty = brightness !== initValRef.current.brightness || hue !== initValRef.current.hue;
+
+  // Button press glow — rise ~100ms then decay ~700ms
+  const btnFlashRef  = useRef({ x: 0, check: 0, power: 0 });
+  const btnPhaseRef  = useRef<Record<'x'|'check'|'power','idle'|'rise'|'fall'>>({ x: 'idle', check: 'idle', power: 'idle' });
+  const [btnFlash, setBtnFlash] = useState({ x: 0, check: 0, power: 0 });
+  const btnFlashRAF  = useRef<number | null>(null);
+  const triggerFlash = useCallback((btn: 'x' | 'check' | 'power') => {
+    btnPhaseRef.current[btn] = 'rise';
+    if (btnFlashRAF.current !== null) return;
+    const tick = () => {
+      let active = false;
+      for (const k of ['x', 'check', 'power'] as const) {
+        const phase = btnPhaseRef.current[k];
+        if (phase === 'rise') {
+          btnFlashRef.current[k] = Math.min(1, btnFlashRef.current[k] + 0.18);
+          if (btnFlashRef.current[k] >= 1) btnPhaseRef.current[k] = 'fall';
+          active = true;
+        } else if (phase === 'fall') {
+          btnFlashRef.current[k] *= 0.88;
+          if (btnFlashRef.current[k] < 0.005) {
+            btnFlashRef.current[k] = 0;
+            btnPhaseRef.current[k] = 'idle';
+          } else {
+            active = true;
+          }
+        }
+      }
+      setBtnFlash({ ...btnFlashRef.current });
+      if (active) btnFlashRAF.current = requestAnimationFrame(tick);
+      else btnFlashRAF.current = null;
+    };
+    btnFlashRAF.current = requestAnimationFrame(tick);
+  }, []);
+  useEffect(() => () => { if (btnFlashRAF.current !== null) cancelAnimationFrame(btnFlashRAF.current); }, []);
 
   const handleSaveAndClose = () => {
     onSave({ brightness: Math.round(brightness * 100), customHue: hue, customSaturation: Math.round(saturation * 100) });
@@ -1299,8 +1948,37 @@ function SourceDetailScreen({
       }}
       onPointerDown={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
+      onMouseMove={handleBlobCursorMove}
+      onMouseLeave={() => { setCursorActive(false); setCursorOff({ x: 0, y: 0 }); }}
     >
+      <style>{`
+        @keyframes blob-drift-sm { 0%,100%{transform:translate(0,0)} 33%{transform:translate(15px,-12px)} 66%{transform:translate(-12px,15px)} }
+        @keyframes blob-drift-md { 0%,100%{transform:translate(0,0)} 28%{transform:translate(-33px,27px)} 70%{transform:translate(27px,-30px)} }
+        @keyframes blob-drift-center { 0%,100%{transform:translate(0,0)} 42%{transform:translate(4px,-3px)} 78%{transform:translate(-3px,4px)} }
+        @keyframes blob-breathe {
+          0%,100% { transform:scale(0.96); opacity:0.93 }
+          50%     { transform:scale(1.11); opacity:0.80 }
+        }
+        @keyframes blob-morph-a {
+          0%,100% { border-radius:50% 50% 50% 50%/50% 50% 50% 50% }
+          20%  { border-radius:70% 30% 62% 38%/42% 64% 36% 58% }
+          45%  { border-radius:34% 66% 30% 70%/64% 36% 68% 32% }
+          70%  { border-radius:64% 36% 42% 58%/30% 70% 34% 66% }
+        }
+        @keyframes blob-morph-b {
+          0%,100% { border-radius:50% 50% 50% 50%/50% 50% 50% 50% }
+          25%  { border-radius:30% 70% 66% 34%/62% 38% 60% 40% }
+          55%  { border-radius:66% 34% 32% 68%/34% 66% 38% 62% }
+          80%  { border-radius:38% 62% 70% 30%/68% 32% 64% 36% }
+        }
+      `}</style>
       {/* Blob — outer: enter/exit animation | inner: brightness + scale */}
+      {!hideBlob && <div style={{
+        position: 'absolute', inset: 0,
+        transform: `translate(${cursorOff.x}px, ${cursorOff.y}px)`,
+        transition: isOpen ? (cursorActive ? 'transform 1.8s cubic-bezier(0.33, 1, 0.68, 1)' : 'transform 2.6s cubic-bezier(0.65, 0, 0.35, 1)') : 'none',
+        pointerEvents: 'none',
+      }}>
       <div style={{
         position: 'absolute', inset: 0,
         transform: blobTransform,
@@ -1316,25 +1994,43 @@ function SourceDetailScreen({
           transformOrigin: `${DETAIL_BLOB_CENTER[0]}px ${DETAIL_BLOB_CENTER[1]}px`,
           transition: 'filter 0.12s ease, transform 0.12s ease',
         }}>
-          {layers.map((l, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              left: l.x, top: l.y, width: l.w, height: l.h,
-              borderRadius: '50%',
-              filter: `blur(${l.blur}px)`,
-              mixBlendMode: (l.blend ?? 'normal') as React.CSSProperties['mixBlendMode'],
-              opacity: l.op ?? 1,
-              background: l.bg,
-              pointerEvents: 'none',
-            }} />
-          ))}
+          <ShaderDetailBlob hue={hue} saturation={saturation} />
+          <ShaderDetailCA hue={hue} saturation={saturation} />
+          {layers.map((l, i) => {
+            const isCenter = i >= 7;
+            const driftName = isCenter ? 'blob-drift-center' : i <= 3 ? 'blob-drift-sm' : 'blob-drift-md';
+            const dur        = [11.1, 13.8, 12.6, 15.9, 12.0, 14.1, 12.9, 10.2, 14.4, 16.5];
+            const driftDelay = [0, -4.2, -7.7, -2.1, -5.8, -1.1, -9.3, -0.3, -0.7, -1.1];
+            // breathing: 4.8s ≈ calm breath, all layers nearly in phase
+            const breatheDelay = [0, -0.3, -0.6, -0.2, -0.5, -0.8, -0.1, -0.4, -0.7, -0.9];
+            const morphName  = i % 2 === 0 ? 'blob-morph-a' : 'blob-morph-b';
+            return (
+              <div key={i} style={{
+                position: 'absolute',
+                left: l.x, top: l.y, width: l.w, height: l.h,
+                pointerEvents: 'none',
+                animation: i === 0 ? 'none' : `blob-breathe 4.8s ease-in-out ${breatheDelay[i]}s infinite`,
+              }}>
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  borderRadius: '50%',
+                  filter: `blur(${l.blur}px)`,
+                  mixBlendMode: (l.blend ?? 'normal') as React.CSSProperties['mixBlendMode'],
+                  opacity: l.op ?? 1,
+                  background: l.bg,
+                  pointerEvents: 'none',
+                  animation: i === 0 ? 'none' : `${driftName} ${dur[i]}s ease-in-out ${driftDelay[i]}s infinite, ${morphName} ${(dur[i]*1.5).toFixed(1)}s ease-in-out ${driftDelay[i]-3}s infinite`,
+                }} />
+              </div>
+            );
+          })}
         </div>
         {/* White core — outer soft halo */}
         <div style={{
           position: 'absolute',
-          left: DETAIL_BLOB_CENTER[0] - 29, top: DETAIL_BLOB_CENTER[1] - 29,
-          width: 58, height: 58, borderRadius: '50%',
-          filter: 'blur(26px)',
+          left: DETAIL_BLOB_CENTER[0] - 14, top: DETAIL_BLOB_CENTER[1] - 14,
+          width: 29, height: 29, borderRadius: '50%',
+          filter: 'blur(13px)',
           background: 'radial-gradient(circle, rgba(255,255,255,0.88) 0%, rgba(255,252,242,0.30) 50%, transparent 75%)',
           opacity: lerp(0.64, 0, tLow),
           transition: 'opacity 0.12s ease',
@@ -1344,9 +2040,9 @@ function SourceDetailScreen({
         {/* White core — inner crisp point */}
         <div style={{
           position: 'absolute',
-          left: DETAIL_BLOB_CENTER[0] - 12, top: DETAIL_BLOB_CENTER[1] - 12,
-          width: 24, height: 24, borderRadius: '50%',
-          filter: 'blur(10px)',
+          left: DETAIL_BLOB_CENTER[0] - 6, top: DETAIL_BLOB_CENTER[1] - 6,
+          width: 12, height: 12, borderRadius: '50%',
+          filter: 'blur(5px)',
           background: 'radial-gradient(circle, rgba(255,255,255,0.96) 0%, rgba(255,252,245,0.50) 50%, transparent 80%)',
           opacity: lerp(0.72, 0, tLow),
           transition: 'opacity 0.12s ease',
@@ -1354,6 +2050,14 @@ function SourceDetailScreen({
           mixBlendMode: 'screen',
         }} />
       </div>
+      </div>}
+
+      {!hideBlob && <ShaderDetailGrain />}
+
+      {/* Shader ambient — above blob, below controls */}
+      {false && <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none', mixBlendMode: 'screen' }}>
+        <ShaderDetailBg hue={hue} />
+      </div>}
 
       {/* Bottom vignette */}
       <div style={{
@@ -1364,105 +2068,92 @@ function SourceDetailScreen({
       {/* Status bar */}
       <StatusBar />
 
-      {/* Nav bar */}
+      {/* Nav bar — large title left + power button right */}
       <div style={{
-        position: 'absolute', top: 65, left: 0, right: 0, height: 44, zIndex: 20,
+        position: 'absolute', top: 52, left: 0, right: 0, height: 72, zIndex: 200,
+        display: 'flex', alignItems: 'center',
+        paddingLeft: 24, paddingRight: 24,
         pointerEvents: isOpen ? 'auto' : 'none',
+        opacity: isOpen ? 1 : 0,
+        transition: `opacity 0.40s ${EASE} 0.16s`,
       }}>
-        {/* Back */}
-        <button onClick={handleClose} style={{ ...glassCircle, position: 'absolute', left: 16, top: 0 }}>
-          <svg width="10" height="16" viewBox="107 87 27 42" fill="rgba(255,255,255,0.82)" style={{ marginLeft: -2 }}>
-            <path d="M110.586 108.014C110.586 107.682 110.641 107.383 110.752 107.117C110.874 106.852 111.062 106.597 111.316 106.354L128.134 90.1006C128.543 89.6911 129.047 89.4863 129.645 89.4863C130.043 89.4863 130.403 89.5859 130.724 89.7852C131.056 89.9733 131.316 90.2279 131.504 90.5488C131.703 90.8698 131.803 91.2295 131.803 91.6279C131.803 92.2145 131.587 92.7292 131.155 93.1719L115.749 108.014L131.155 122.839C131.587 123.282 131.803 123.796 131.803 124.383C131.803 124.792 131.703 125.158 131.504 125.479C131.316 125.811 131.056 126.071 130.724 126.259C130.403 126.447 130.043 126.541 129.645 126.541C129.047 126.541 128.543 126.336 128.134 125.927L111.316 109.674C111.062 109.43 110.874 109.176 110.752 108.91C110.641 108.633 110.586 108.335 110.586 108.014Z" />
+        <div style={{ flex: 1, pointerEvents: 'none' }}>
+          <div style={{
+            fontSize: 28, fontWeight: 700, color: 'rgba(255,239,241,1.00)',
+            letterSpacing: '-0.5px', lineHeight: 1.1,
+          }}>
+            Lamp
+          </div>
+        </div>
+
+        <button
+          onClick={() => { setIsOn(v => !v); onToggle?.(); }}
+          onPointerDown={() => triggerFlash('power')}
+          style={{
+            ...glassCircle,
+            background: isOn ? `hsla(${hue},50%,75%,0.16)` : `hsla(${hue},40%,70%,0.08)`,
+            transition: 'background 0.3s ease',
+            border: 'none', outline: 'none',
+            filter: btnFlash.power > 0.005 ? `brightness(${(1 + btnFlash.power * 1.6).toFixed(2)}) saturate(${(1 + btnFlash.power * 2.5).toFixed(2)})` : 'none',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 13 13" fill="none">
+            <path d="M4.2 2.0 A5.2 5.2 0 1 0 8.8 2.0"
+              stroke={isOn ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.38)'}
+              strokeWidth="1.5" strokeLinecap="round" fill="none"
+              style={{ transition: 'stroke 0.3s ease' }}
+            />
+            <line x1="6.5" y1="0.5" x2="6.5" y2="5.8"
+              stroke={isOn ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.38)'}
+              strokeWidth="1.5" strokeLinecap="round"
+              style={{ transition: 'stroke 0.3s ease' }}
+            />
+          </svg>
+        </button>
+      </div>
+
+      {/* Bottom action bar — X and ✓ */}
+      <div style={{
+        position: 'absolute', bottom: 44, left: 0, right: 0, height: 44, zIndex: 34,
+        pointerEvents: isOpen ? 'auto' : 'none',
+        opacity: isOpen ? 1 : 0,
+        transition: `opacity 0.40s ${EASE} 0.20s`,
+      }}>
+        {/* Close — X */}
+        <button onClick={handleClose} onPointerDown={() => triggerFlash('x')} style={{
+          position: 'absolute', left: 36, top: 0,
+          width: 48, height: 48, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: `hsla(${hue},45%,72%,0.12)`, border: 'none', outline: 'none', cursor: 'pointer',
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          filter: btnFlash.x > 0.005 ? `brightness(${(1 + btnFlash.x * 1.6).toFixed(2)}) saturate(${(1 + btnFlash.x * 2.5).toFixed(2)})` : 'none',
+        }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M1 1L11 11M11 1L1 11" stroke="rgba(255,255,255,0.82)" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
         </button>
 
-        {/* Title */}
-        <span style={{
-          position: 'absolute', left: 80, right: 80, top: 0, height: 44,
+        {/* Save — checkmark */}
+        <button onClick={handleSaveAndClose} onPointerDown={() => triggerFlash('check')} style={{
+          position: 'absolute', right: 36, top: 0,
+          width: 48, height: 48, borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 17, fontWeight: 600, color: 'rgba(255,239,241,0.92)', letterSpacing: '-0.2px',
-          pointerEvents: 'none',
+          background: `hsla(${hue},45%,72%,0.12)`, border: 'none', outline: 'none', cursor: 'pointer',
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          filter: btnFlash.check > 0.005 ? `brightness(${(1 + btnFlash.check * 1.6).toFixed(2)}) saturate(${(1 + btnFlash.check * 2.5).toFixed(2)})` : 'none',
         }}>
-          {light.name}
-        </span>
-
-        {/* Checkmark — appears with spring animation when values changed */}
-        <button
-          onClick={handleSaveAndClose}
-          style={{
-            ...glassCircle,
-            position: 'absolute', right: 16, top: 0,
-            background: 'rgba(255,255,255,0.08)',
-            opacity: isDirty ? 1 : 0,
-            transform: isDirty ? 'scale(1)' : 'scale(0.55)',
-            transition: 'opacity 0.42s cubic-bezier(0.34,1.56,0.64,1), transform 0.42s cubic-bezier(0.34,1.56,0.64,1)',
-            pointerEvents: isDirty ? 'auto' : 'none',
-          }}
-        >
           <svg width="15" height="12" viewBox="0 0 15 12" fill="none">
             <path d="M1.5 6L5.5 10L13.5 1.5" stroke="rgba(255,255,255,0.88)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
       </div>
 
-      {/* Arc breathing keyframe */}
-      <style>{`@keyframes arcBreathe{0%{opacity:1}40%{opacity:0.70}80%{opacity:1}100%{opacity:1}}`}</style>
-
-      {/* Brightness arc — outer: fade in/out | inner: breathing animation */}
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 11, pointerEvents: 'none',
-        opacity: isOpen ? 1 : 0,
-        transition: `opacity 0.40s ${EASE} 0.24s`,
-      }}>
-        <div key={arcAnimKey} style={{
-          position: 'absolute', inset: 0,
-          animation: isOpen ? 'arcBreathe 3.4s ease-in-out 0.64s' : 'none',
-        }}>
-          {/* SVG arc line */}
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
-            <path
-              d={`M ${ARC_CX - arcHalfW} ${ARC_Y} Q ${ARC_CX} ${ARC_Y + arcSag} ${ARC_CX + arcHalfW} ${ARC_Y}`}
-              stroke="rgba(255,255,255,0.46)"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-
-          {/* Sun icon — purely visual, left tip of arc */}
-          <div style={{
-            position: 'absolute',
-            left: ARC_CX - arcHalfW - 12,
-            top: ARC_Y - 12,
-            width: 24, height: 24, pointerEvents: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="3" fill="rgba(255,255,255,0.85)" />
-              <line x1="10" y1="1.5" x2="10" y2="4.5"   stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="10" y1="15.5" x2="10" y2="18.5"  stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="1.5" y1="10" x2="4.5" y2="10"    stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="15.5" y1="10" x2="18.5" y2="10"  stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="3.6" y1="3.6"   x2="5.7" y2="5.7"   stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="14.3" y1="14.3" x2="16.4" y2="16.4" stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="16.4" y1="3.6"  x2="14.3" y2="5.7"  stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="5.7" y1="14.3"  x2="3.6" y2="16.4"  stroke="rgba(255,255,255,0.58)" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      {/* Arc drag zone — full arc width + 10px above + 10px below + full sag depth */}
+      {/* Swipe zone left — brightness */}
       <div
         style={{
           position: 'absolute',
-          left: ARC_CX - arcHalfW - 10,
-          top: ARC_Y - 10,
-          width: arcHalfW * 2 + 20,
-          height: Math.ceil(arcSag) + 20,
-          zIndex: 13,
-          touchAction: 'none',
-          cursor: 'ns-resize',
+          top: 0, left: 0, right: 0, bottom: 230,
+          zIndex: 32, touchAction: 'none',
           pointerEvents: isOpen ? 'auto' : 'none',
         }}
         onPointerDown={onBrightDown}
@@ -1471,127 +2162,579 @@ function SourceDetailScreen({
         onPointerCancel={onBrightUp}
       />
 
-      {/* Saturation control — vertical line + droplet icon, right edge */}
+      {/* Saturation zone — inner bowl of the dial arc */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 50, left: 90, right: 90,
+          height: 140,
+          zIndex: 34, touchAction: 'none',
+          pointerEvents: isOpen ? 'auto' : 'none',
+        }}
+        onPointerDown={onSatDown}
+        onPointerMove={onSatMove}
+        onPointerUp={onSatUp}
+        onPointerCancel={onSatUp}
+      />
+
+
+
+
+      {/* Hue rotary dial */}
       {(() => {
-        const SAT_X = 364;
-        const SAT_ICON_CY = 368;
-        const SAT_LINE_LEN = lerp(4, 150, saturation);
-        return (
-          <>
-            <div style={{
-              position: 'absolute', inset: 0, zIndex: 11, pointerEvents: 'none',
-              opacity: isOpen ? 1 : 0,
-              transition: `opacity 0.40s ${EASE} 0.28s`,
-            }}>
-              <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}>
-                <line
-                  x1={SAT_X} y1={SAT_ICON_CY - 14}
-                  x2={SAT_X} y2={SAT_ICON_CY - 14 - SAT_LINE_LEN}
-                  stroke="rgba(255,255,255,0.46)"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div style={{
-                position: 'absolute',
-                left: SAT_X - 12, top: SAT_ICON_CY - 12,
-                width: 24, height: 24,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                pointerEvents: 'none',
-              }}>
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <path
-                    d="M9 2 C14 6,14.5 9,14.5 11.5 A5.5 5.5 0 0 1 3.5 11.5 C3.5 9,4 6,9 2Z"
-                    fill="rgba(255,255,255,0.85)"
-                    stroke="rgba(255,255,255,0.30)"
-                    strokeWidth="0.5"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                left: SAT_X - 30,
-                top: SAT_ICON_CY - 14 - 150 - 30,
-                width: 60,
-                height: 176 + 60,
-                zIndex: 14,
-                touchAction: 'none',
-                cursor: 'ns-resize',
-                pointerEvents: isOpen ? 'auto' : 'none',
-              }}
-              onPointerDown={onSatDown}
-              onPointerMove={onSatMove}
-              onPointerUp={onSatUp}
-              onPointerCancel={onSatUp}
-            />
-          </>
-        );
+        const DR = 230, DCX = 195, DSVGH = 100, DCY = 230;
+        const DSPAN = 74, ARC_PER_HUE = 1.3, TICK_HUE = 2;
+        const TICK_LEN = Math.max(2.5, 24 * saturation); // scales with saturation: short → full tick
+        const tickFrac = Math.max(0, (TICK_LEN - 2.5) / 21.5); // 0 at min, 1 at max
+
+        const visHalfSpan = DSPAN / ARC_PER_HUE;
+        const cI = Math.round(hue / TICK_HUE);
+        const nExt = Math.ceil(visHalfSpan / TICK_HUE) + 2;
+
+        const tCenter: React.ReactElement[] = [];
+        const tMid:    React.ReactElement[] = [];
+        const tFar:    React.ReactElement[] = [];
+        const tEdge:   React.ReactElement[] = [];
+        const tOuter:  React.ReactElement[] = [];
+        const tCAr:     React.ReactElement[] = [];
+        const tCAb:     React.ReactElement[] = [];
+        const tCAr2:    React.ReactElement[] = []; // blurred outer CA
+        const tCAb2:    React.ReactElement[] = [];
+
+        for (let i = cI - nExt; i <= cI + nExt; i++) {
+          const tH  = i * TICK_HUE;
+          const arcA = (tH - hue) * ARC_PER_HUE;
+          if (Math.abs(arcA) > DSPAN) continue;
+          const rad = arcA * Math.PI / 180;
+          const x   = DCX + DR * Math.sin(rad);
+          const y   = DCY - DR * Math.cos(rad);
+          const nx  = (DCX - x) / DR, ny = (DCY - y) / DR;
+          const ef       = Math.abs(arcA) / DSPAN;
+          const op       = Math.max(0.06, 1 - ef * 0.88);
+          // Full spectrum compressed into visible arc; centre 20% = selected hue
+          const normArc   = arcA / DSPAN; // -1 … +1
+          const specHue   = ((hue - normArc * 120) % 360 + 360) % 360;
+          // t=0 at center → source color; t=1 at edge → spectrum color; blends across 0.10–0.32
+          const t         = Math.max(0, Math.min(1, (Math.abs(normArc) - 0.10) / 0.22));
+          const hueDelta  = (((specHue - hue) % 360) + 540) % 360 - 180; // shortest arc
+          const blendHue  = ((hue + hueDelta * t) + 360) % 360;
+          const blendSat  = Math.round(((90 + 10 * saturation) - 10 * t) * tickFrac);
+          const blendLit  = Math.round(((78 - 14 * saturation) + 6 * t) * saturation + 95 * (1 - saturation));
+          const tickOp    = op * (0.55 + 0.45 * saturation);
+          const tickColor = `hsl(${Math.round(blendHue)},${blendSat}%,${blendLit}%)`;
+
+          const mk = (key: string, dx = 0, color = tickColor, o = tickOp) => (
+            <line key={key}
+              x1={x + dx} y1={y} x2={x + nx * TICK_LEN + dx} y2={y + ny * TICK_LEN}
+              stroke={color} strokeWidth={1.1} strokeLinecap="round" opacity={o} />
+          );
+
+          if      (ef < 0.48)  tCenter.push(mk(`c${i}`));
+          else if (ef < 0.65)  tMid.push(mk(`m${i}`));
+          else if (ef < 0.80)  tFar.push(mk(`f${i}`));
+          else if (ef < 0.92)  tEdge.push(mk(`e${i}`));
+          else                 tOuter.push(mk(`o${i}`));
+
+          // Chromatic aberration at edges
+          if (ef > 0.45) {
+            const caStr = Math.min(1, (ef - 0.45) / 0.55);
+            const caOff = caStr * 1.0 * (arcA > 0 ? 1 : -1);
+            const caOp  = caStr * 0.55 * op;
+            tCAr.push(mk(`cr${i}`,  caOff, 'rgba(255,80,80,1)',   caOp));
+            tCAb.push(mk(`cb${i}`, -caOff, 'rgba(70,130,255,1)',  caOp));
+            // Soft blurred CA for outermost zone
+            if (ef > 0.78) {
+              const ca2Str = Math.min(1, (ef - 0.78) / 0.22);
+              const ca2Off = ca2Str * 1.0 * (arcA > 0 ? 1 : -1);
+              const ca2Op  = ca2Str * 0.38 * op;
+              tCAr2.push(mk(`cr2${i}`,  ca2Off, 'rgba(255,60,60,1)',  ca2Op));
+              tCAb2.push(mk(`cb2${i}`, -ca2Off, 'rgba(50,110,255,1)', ca2Op));
+            }
+          }
+
+        }
+
+        const indicatorColor = hslToRgb(hue, 100, 75);
+        return (<>
+          {/* Arc-shaped hit zone for hue rotation */}
+          <div style={{
+            position: 'absolute', bottom: 8, left: 0, right: 0, height: 226, zIndex: 33,
+            touchAction: 'none', cursor: 'ew-resize',
+            pointerEvents: isOpen ? 'auto' : 'none',
+          }}
+            onPointerDown={onDialDown}
+            onPointerMove={onDialMove}
+            onPointerUp={onDialUp}
+            onPointerCancel={onDialUp}
+          />
+          <div style={{
+            position: 'absolute', bottom: 100, left: 0, right: 0, height: DSVGH, zIndex: 33,
+            pointerEvents: 'none',
+            opacity: isOpen ? 1 : 0,
+            transition: `opacity 0.40s ${EASE} 0.30s`,
+          }}
+          >
+            <svg width="100%" height={DSVGH} viewBox={`0 0 390 ${DSVGH}`}
+              style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+              <defs>
+                <filter id="hd-blur-1" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="1.0"/>
+                </filter>
+                <filter id="hd-blur-2" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="1.8"/>
+                </filter>
+                <filter id="hd-blur-3" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="6.0"/>
+                </filter>
+                <filter id="hd-blur-4" x="-80%" y="-80%" width="260%" height="260%">
+                  <feGaussianBlur stdDeviation="11"/>
+                </filter>
+                <filter id="hd-ca-blur" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur stdDeviation="2.5"/>
+                </filter>
+              </defs>
+
+              <g>{tCenter}</g>
+              <g filter="url(#hd-blur-1)">{tMid}</g>
+              <g filter="url(#hd-blur-2)">{tFar}</g>
+              <g filter="url(#hd-blur-3)">{tEdge}</g>
+              <g filter="url(#hd-blur-4)">{tOuter}</g>
+
+              {/* Chromatic aberration — sharp */}
+              <g style={{ mixBlendMode: 'screen' as React.CSSProperties['mixBlendMode'] }}>
+                {tCAr}{tCAb}
+              </g>
+              {/* Chromatic aberration — soft blurred outer fringe */}
+              <g style={{ mixBlendMode: 'screen' as React.CSSProperties['mixBlendMode'] }} filter="url(#hd-ca-blur)">
+                {tCAr2}{tCAb2}
+              </g>
+
+              {/* Fixed center indicator */}
+              <line x1={DCX} y1={-2} x2={DCX} y2={Math.round(10 + 18 * saturation)}
+                stroke={indicatorColor} strokeWidth="2.4" strokeLinecap="round" opacity={0.95} />
+            </svg>
+          </div>
+        </>);
       })()}
 
-      {/* Hue strip */}
-      <div style={{
-        position: 'absolute', left: 24, right: 24, bottom: 72, zIndex: 10,
-        opacity: isOpen ? 1 : 0,
-        transition: `opacity 0.36s ${EASE} 0.14s`,
-      }}>
-        <div
-          ref={stripRef}
-          style={{
-            position: 'relative', height: 36, borderRadius: 18,
-            background: [
-              'linear-gradient(to right,',
-              'hsl(0,100%,50%), hsl(30,100%,50%), hsl(60,100%,50%),',
-              'hsl(90,100%,50%), hsl(120,100%,50%), hsl(150,100%,50%),',
-              'hsl(180,100%,50%), hsl(210,100%,50%), hsl(240,100%,50%),',
-              'hsl(270,100%,50%), hsl(300,100%,50%), hsl(330,100%,50%),',
-              'hsl(360,100%,50%))',
-            ].join(' '),
-            boxShadow: '0 4px 28px rgba(0,0,0,0.50), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.18)',
-            cursor: 'pointer',
-            touchAction: 'none',
-          }}
-          onPointerDown={(e) => {
-            isDragging.current = true;
-            (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-            applyHue(e.clientX);
-          }}
-          onPointerMove={(e) => { if (isDragging.current) applyHue(e.clientX); }}
-          onPointerUp={() => { isDragging.current = false; }}
-          onPointerCancel={() => { isDragging.current = false; }}
-        >
-          {/* Glass sheen overlay */}
-          <div style={{
-            position: 'absolute', inset: 0, borderRadius: 18, pointerEvents: 'none',
-            background: 'linear-gradient(to bottom, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 50%, rgba(0,0,0,0.10) 100%)',
-          }} />
-
-          {/* Glass disc thumb — iOS 26 liquid glass style */}
-          <div style={{
-            position: 'absolute', top: '50%',
-            left: `${(hue / 360) * 100}%`,
-            transform: 'translate(-50%, -50%)',
-            width: 44, height: 44, borderRadius: '50%',
-            backdropFilter: 'blur(12px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(12px) saturate(200%)',
-            background: 'radial-gradient(circle at 40% 35%, rgba(255,255,255,0.44) 0%, rgba(255,255,255,0.08) 48%, rgba(0,0,0,0.04) 100%)',
-            boxShadow: [
-              '0 2px 14px rgba(0,0,0,0.40)',
-              `0 0 2px 1px hsl(${hue},60%,52%)`,
-              'inset 0 1px 0 rgba(255,255,255,0.62)',
-            ].join(', '),
-            pointerEvents: 'none',
-          }} />
-        </div>
+      {/* Grabber — draggable: pull down 80px to dismiss */}
+      <div
+        onPointerDown={onGrabberDown}
+        onPointerMove={onGrabberMove}
+        onPointerUp={onGrabberUp}
+        onPointerCancel={onGrabberUp}
+        style={{
+          position: 'absolute',
+          bottom: Math.max(-10, 2 - grabberDrag * 0.4),
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 120,
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          cursor: 'grab',
+          touchAction: 'none',
+        }}
+      >
+        <div style={{
+          width: Math.max(16, 36 - grabberDrag * 0.28),
+          height: 5,
+          borderRadius: 3,
+          background: `rgba(204,204,204,${Math.max(0.15, 0.40 - grabberDrag * 0.003)})`,
+          pointerEvents: 'none',
+        }} />
       </div>
+    </div>
+  );
+}
 
-      {/* Grabber */}
+// ── GlslBlobCanvas — WebGL wave-noise blob with user-triggered color transitions
+
+const GLSL_VERT = `
+  attribute vec2 a_pos;
+  void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
+`;
+
+const GLSL_FRAG = `
+  precision mediump float;
+  uniform vec2  iResolution;
+  uniform float iTime;
+  uniform float uHueCur;
+  uniform float uHuePrev;
+  uniform float uT;
+  uniform float uC2AsBg;
+  uniform float uDarkFade;
+  uniform float uEffTime;
+  uniform float uFixedHue;
+  uniform float uStrongBreathe;
+  uniform float uNoBreath;
+
+  mat2 Rot(float a) { float s=sin(a),c=cos(a); return mat2(c,-s,s,c); }
+  vec2 hash(vec2 p) {
+    p=vec2(dot(p,vec2(2127.1,81.17)),dot(p,vec2(1269.5,283.37)));
+    return fract(sin(p)*43758.5453);
+  }
+  float noise(vec2 p) {
+    vec2 i=floor(p),f=fract(p),u=f*f*(3.0-2.0*f);
+    return 0.5+0.5*mix(
+      mix(dot(-1.0+2.0*hash(i+vec2(0,0)),f-vec2(0,0)),dot(-1.0+2.0*hash(i+vec2(1,0)),f-vec2(1,0)),u.x),
+      mix(dot(-1.0+2.0*hash(i+vec2(0,1)),f-vec2(0,1)),dot(-1.0+2.0*hash(i+vec2(1,1)),f-vec2(1,1)),u.x),u.y);
+  }
+  vec3 hsl2rgb(float h, float s, float l) {
+    vec3 rgb=clamp(abs(mod(h/60.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0,0.0,1.0);
+    return l+s*(rgb-0.5)*(1.0-abs(2.0*l-1.0));
+  }
+  void getColors(float h, float hv, out vec3 c1, out vec3 c2, out vec3 c3, out vec3 c4) {
+    c1 = hsl2rgb(h + hv,                        0.90, 0.64);
+    c2 = mix(hsl2rgb(h + hv, 0.85, 0.48), vec3(0.078, 0.051, 0.067), uC2AsBg * uDarkFade);
+    c3 = hsl2rgb(mod(h + hv - 12.0, 360.0),     0.92, 0.68);
+    c4 = hsl2rgb(mod(h + hv - 20.0, 360.0),     0.88, 0.50);
+  }
+  void main() {
+    vec2 uv = gl_FragCoord.xy / iResolution.xy;
+    vec2 tuv = uv - 0.5;
+    vec2 tuvOrig = tuv;
+    float breathe = 0.5 + 0.5 * sin(iTime * 1.309);
+    float breatheScale = 1.0 - breathe * 0.055;
+    float mask = 1.0 - smoothstep(0.14, 0.50, length(tuv) * breatheScale);
+    if (mask <= 0.0) { gl_FragColor = vec4(0.0); return; }
+
+    float degree = noise(vec2(uEffTime * 0.05, tuv.x * tuv.y));
+    float aspect = iResolution.x / iResolution.y;
+    tuv.y /= aspect;
+    tuv *= Rot(radians((degree - 0.5) * 720.0 + 180.0));
+    tuv.y *= aspect;
+
+    float speed = uEffTime * 2.0;
+    tuv.x += sin(tuv.y * 5.0 + speed) / 18.0;
+    tuv.y += sin(tuv.x * 7.5 + speed) / 9.0;
+
+    float hueVar = (sin(iTime * 0.23) * 2.0 + sin(iTime * 0.131) * 1.25 + sin(iTime * 0.053) * 0.5) * (1.0 - uFixedHue);
+    vec3 a1,a2,a3,a4, b1,b2,b3,b4;
+    getColors(uHueCur,  hueVar, a1,a2,a3,a4);
+    getColors(uHuePrev, hueVar, b1,b2,b3,b4);
+    float ease = uT*uT*(3.0-2.0*uT);
+    vec3 color1=mix(b1,a1,ease); vec3 color2=mix(b2,a2,ease);
+    vec3 color3=mix(b3,a3,ease); vec3 color4=mix(b4,a4,ease);
+
+    float layerAngle = -5.0 + uEffTime * 34.0;
+    float centerFade = smoothstep(0.08, 0.30, length(tuvOrig));
+    float mixX = smoothstep(-0.3, 0.2, (tuvOrig * Rot(radians(layerAngle))).x) * centerFade;
+    vec3 layer1 = mix(color3, color2, mixX);
+    vec3 layer2 = mix(color4, color1, mixX);
+    vec3 color  = mix(layer1,layer2,smoothstep(0.5,-0.3,tuv.y));
+
+    float grain = length(hash(gl_FragCoord.xy+fract(iTime)*100.0))*0.07;
+    color = max(vec3(0.0), color-grain);
+    float breatheAlpha = mix(mix(0.91 + breathe * 0.09, 0.80 + breathe * 0.20, uStrongBreathe), 1.0, uNoBreath);
+    color *= mask * breatheAlpha;
+
+    gl_FragColor = vec4(color, mask * breatheAlpha);
+  }
+`;
+
+const GLSL_CANVAS_SIZE = 880;
+
+const GlslBlobCanvas = dynamic(
+  () => Promise.resolve().then(() => {
+    function GlslBlobCanvasImpl({ hue, size = GLSL_CANVAS_SIZE, offsetY = 0, useBgC2 = false, blur = 0, brightness = 1, saturate = 1, opacity = 1, fixedHue = false, strongBreathe = false, noBreath = false }: { hue: number; size?: number; offsetY?: number; useBgC2?: boolean; blur?: number; brightness?: number; saturate?: number; opacity?: number; fixedHue?: boolean; strongBreathe?: boolean; noBreath?: boolean }) {
+      const canvasRef = useRef<HTMLCanvasElement>(null);
+      const stateRef  = useRef({
+        raf: 0,
+        startTime: performance.now(),
+        hueCur: hue, huePrev: hue, transT: 1.0, transStart: 0,
+        locs: {} as Record<string, WebGLUniformLocation | null>,
+      });
+
+      useEffect(() => {
+        const canvas = canvasRef.current!;
+        const gl = canvas.getContext('webgl');
+        if (!gl) return;
+        const s = stateRef.current;
+
+        const compile = (type: number, src: string) => {
+          const sh = gl.createShader(type)!;
+          gl.shaderSource(sh, src); gl.compileShader(sh); return sh;
+        };
+        const prog = gl.createProgram()!;
+        gl.attachShader(prog, compile(gl.VERTEX_SHADER,   GLSL_VERT));
+        gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, GLSL_FRAG));
+        gl.linkProgram(prog); gl.useProgram(prog);
+
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER,
+          new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+        const pos = gl.getAttribLocation(prog, 'a_pos');
+        gl.enableVertexAttribArray(pos);
+        gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+
+        gl.uniform1f(gl.getUniformLocation(prog, 'uC2AsBg'),      useBgC2      ? 1.0 : 0.0);
+        gl.uniform1f(gl.getUniformLocation(prog, 'uFixedHue'),     fixedHue     ? 1.0 : 0.0);
+        gl.uniform1f(gl.getUniformLocation(prog, 'uStrongBreathe'), strongBreathe ? 1.0 : 0.0);
+        gl.uniform1f(gl.getUniformLocation(prog, 'uNoBreath'),    noBreath   ? 1.0 : 0.0);
+
+        s.locs = {
+          iResolution: gl.getUniformLocation(prog, 'iResolution'),
+          iTime:       gl.getUniformLocation(prog, 'iTime'),
+          uHueCur:     gl.getUniformLocation(prog, 'uHueCur'),
+          uHuePrev:    gl.getUniformLocation(prog, 'uHuePrev'),
+          uT:          gl.getUniformLocation(prog, 'uT'),
+          uDarkFade:   gl.getUniformLocation(prog, 'uDarkFade'),
+          uEffTime:    gl.getUniformLocation(prog, 'uEffTime'),
+        };
+
+        const loop = () => {
+          const now = performance.now();
+          if (s.transT < 1.0) s.transT = Math.min(1.0, (now - s.transStart) / 900);
+          const L = s.locs;
+          gl.uniform2f(L.iResolution, canvas.width, canvas.height);
+          const elapsed = (now - s.startTime) / 1000;
+          gl.uniform1f(L.iTime,    elapsed);
+          gl.uniform1f(L.uHueCur,  s.hueCur);
+          gl.uniform1f(L.uHuePrev, s.huePrev);
+          gl.uniform1f(L.uT,       s.transT);
+          gl.uniform1f(L.uDarkFade, Math.min(1.0, elapsed / 2));
+          // 0.5x speed for first 2s, linear ramp to 1x — integral gives effective time
+          const effT = elapsed <= 2
+            ? 0.5 * elapsed + 0.125 * elapsed * elapsed
+            : elapsed - 0.5;
+          gl.uniform1f(L.uEffTime, effT);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          s.raf = requestAnimationFrame(loop);
+        };
+        s.raf = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(s.raf);
+      }, []);
+
+      const prevHueRef = useRef(hue);
+      useEffect(() => {
+        if (hue === prevHueRef.current) return;
+        const s = stateRef.current;
+        const cur = mix01(s.huePrev, s.hueCur, Math.min(1, s.transT));
+        s.huePrev   = cur;
+        s.hueCur    = hue;
+        s.transT    = 0;
+        s.transStart = performance.now();
+        prevHueRef.current = hue;
+      }, [hue]);
+
+      const half = size / 2;
+      return (
+        <div style={{
+          position: 'absolute',
+          left: DETAIL_BLOB_CENTER[0] - half,
+          top:  DETAIL_BLOB_CENTER[1] - half + offsetY,
+          width: size, height: size,
+          mixBlendMode: 'screen', pointerEvents: 'none',
+          filter: [blur > 0 && `blur(${blur}px)`, brightness !== 1 && `brightness(${brightness})`, saturate !== 1 && `saturate(${saturate})`].filter(Boolean).join(' ') || undefined,
+          opacity,
+        }}>
+          <canvas ref={canvasRef}
+            width={size} height={size}
+            style={{ display: 'block' }}
+          />
+        </div>
+      );
+    }
+    return { default: GlslBlobCanvasImpl };
+  }),
+  { ssr: false }
+);
+
+function mix01(a: number, b: number, t: number) { return a + (b - a) * t; }
+
+// ── Source detail screen 2 — screen 1 UI + GLSL wave blob overlay ─────────────
+
+const ShaderChromaFlowEffect = dynamic(
+  () => import('shaders/react').then(({
+    Shader: SShader,
+    ChromaFlow: SCF,
+    FilmGrain: SFG,
+    Glow: SGlow,
+  }) => {
+    const hslToHex = (h: number, s: number, l: number): string => {
+      const hn = ((h % 360) + 360) % 360;
+      const sl = s / 100, ll = l / 100;
+      const a = sl * Math.min(ll, 1 - ll);
+      const f = (n: number) => {
+        const k = (n + hn / 30) % 12;
+        return Math.round(255 * (ll - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    };
+    function Impl({ hue, brightness }: { hue: number; brightness: number }) {
+      // All colors stay within ±20° of source hue to match blob palette (c1–c4 are h, h-12, h-20)
+      // intensity and ripple strength scale with source brightness
+      const cfIntensity  = Math.max(0.72, 0.90 * brightness);
+      // Blue-purple zone (center 235°, ±75°): shrink hue spread → fixes pink center in
+      // blue AND excess blue lower area in purple
+      const bpDist    = Math.abs(((hue - 235 + 180 + 360) % 360) - 180);
+      const bpZone    = Math.max(0, 1 - bpDist / 75);
+      const spreadMul = 1 - bpZone * 0.62; // at peak: offsets reduced to ~38% of original
+
+      // Blue zone (~220°): lightness boost + desaturate center to keep it icy, not pink
+      const blueDist   = Math.abs(((hue - 220 + 180 + 360) % 360) - 180);
+      const blueZone   = Math.max(0, 1 - blueDist / 55);
+      const blueBoost  = Math.round(blueZone * 24);
+      const baseSatAdj = Math.round(blueZone * 22);
+      const baseLAdj   = Math.round(blueZone * 12);
+
+      // Red zone (~5°): more vivid effect
+      const redDist     = Math.abs(((hue - 5 + 180 + 360) % 360) - 180);
+      const redZone     = Math.max(0, 1 - redDist / 50);
+      const redBoost    = Math.round(redZone * 20);
+      const redIntBoost = redZone * 0.25;
+
+      // Averaged hue offsets (closer to source hue in blue/purple range)
+      const oBase  = Math.round(-11 * spreadMul);
+      const oUp    = Math.round(-16 * spreadMul);
+      const oDown  = Math.round(-21 * spreadMul);
+      const oLeft  = Math.round(-18 * spreadMul);
+      const oRight = Math.round(-14 * spreadMul);
+
+      return (
+        <SShader style={{ position: 'absolute', inset: 0 }}>
+          <SCF
+            baseColor={hslToHex(hue + oBase,  90 - baseSatAdj, 50 + blueBoost + baseLAdj + redBoost)}
+            upColor={hslToHex(hue + oUp,       88, 58 + blueBoost + redBoost)}
+            downColor={hslToHex(hue + oDown,   85, 44 + blueBoost + redBoost)}
+            leftColor={hslToHex(hue + oLeft,   88, 56 + blueBoost + redBoost)}
+            rightColor={hslToHex(hue + oRight, 90, 48 + blueBoost + redBoost)}
+            blendMode="linearDodge"
+            intensity={cfIntensity + redIntBoost}
+            radius={2}
+            momentum={28}
+          />
+          <SGlow intensity={0.8} threshold={0.20} size={30} />
+          <SFG strength={0.10} animated />
+        </SShader>
+      );
+    }
+    return { default: Impl };
+  }),
+  { ssr: false }
+);
+
+function SourceDetailScreen2({
+  light, sceneIdx, onClose, onSave, fromCardRect, onToggle,
+}: {
+  light: LightSource;
+  sceneIdx: number;
+  onClose: () => void;
+  onSave: (updates: SceneLightSettings) => void;
+  fromCardRect?: DOMRect;
+  onToggle?: () => void;
+}) {
+  const scenePalette   = (SCENE_CARD_PALETTES[sceneIdx] ?? SCENE_CARD_PALETTES[0])[light.blobGroup];
+  const sceneData      = light.sceneSettings?.[sceneIdx];
+  const initHue        = sceneData?.customHue ?? rgbToHue(scenePalette.fog);
+  const initBrightness = (sceneData?.brightness ?? light.brightness) / 100;
+  const [liveHue, setLiveHue] = useState(initHue);
+  const [liveBrightness, setLiveBrightness] = useState(initBrightness);
+  const DEFAULT_B  = 0.72;
+  const tLow       = Math.max(0, Math.min(1, liveBrightness / DEFAULT_B));
+  const tHigh      = Math.max(0, Math.min(1, (liveBrightness - DEFAULT_B) / (1 - DEFAULT_B)));
+  const blobScale  = liveBrightness <= DEFAULT_B ? lerp(0.50, 1.0, tLow) : lerp(1.0, 1.20, tHigh);
+  const blobBright = lerp(0.30, 1.0, tLow);
+  const [pressing, setPressing] = useState(false);
+  const [effectMounted, setEffectMounted] = useState(false);
+  const [effectOpacity, setEffectOpacity] = useState(1);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dial zone starts at bottom: 228px → ~27% from bottom → yNorm ≈ 0.73
+  const DIAL_ZONE_START = 0.73;
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if ((e.clientY - rect.top) / rect.height > DIAL_ZONE_START) return;
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    setEffectMounted(true);
+    setPressing(true);
+  }, []);
+
+  const handleRelease = useCallback(() => {
+    setPressing(false);
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+    fadeTimerRef.current = setTimeout(() => setEffectMounted(false), 1600);
+  }, []);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height * 0.34;
+    const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+    const distFactor = Math.max(0.3, 1 - dist / (rect.width * 0.96));
+    const yNorm = y / rect.height;
+    // Fade to zero before the dial zone so no glow bleeds into it
+    const FADE_START = 0.58;
+    const yFactor = yNorm > DIAL_ZONE_START
+      ? 0
+      : yNorm > FADE_START
+        ? Math.max(0, 1 - (yNorm - FADE_START) / (DIAL_ZONE_START - FADE_START))
+        : 1;
+    setEffectOpacity(distFactor * yFactor);
+  }, []);
+
+  return (
+    <div
+      style={{ position: 'absolute', inset: 0 }}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleRelease}
+      onMouseLeave={handleRelease}
+      onMouseMove={handleMouseMove}
+    >
+      <SourceDetailScreen
+        light={light}
+        sceneIdx={sceneIdx}
+        onClose={onClose}
+        onSave={onSave}
+        fromCardRect={fromCardRect}
+        onBrightnessChange={setLiveBrightness}
+        onHueChange={setLiveHue}
+        onToggle={onToggle}
+        hideBlob
+      />
       <div style={{
-        position: 'absolute', bottom: 19, left: '50%', transform: 'translateX(-50%)',
-        width: 36, height: 5, borderRadius: 3,
-        background: 'rgba(204,204,204,0.40)', zIndex: 20,
-      }} />
+        position: 'absolute', inset: 0, zIndex: 31, pointerEvents: 'none',
+        transform: `scale(${blobScale.toFixed(4)})`,
+        transformOrigin: `${DETAIL_BLOB_CENTER[0]}px ${DETAIL_BLOB_CENTER[1]}px`,
+        filter: blobBright < 0.999 ? `brightness(${blobBright.toFixed(3)})` : undefined,
+      }}>
+        <GlslBlobCanvas hue={(liveHue - 18 + 360) % 360} offsetY={80} useBgC2 brightness={0.65} saturate={1.7} opacity={0.65} />
+        <GlslBlobCanvas hue={liveHue} size={528} blur={10} />
+        <GlslBlobCanvas hue={(liveHue + 14) % 360} size={280} blur={5} brightness={0.8} fixedHue strongBreathe />
+        <GlslBlobCanvas hue={(liveHue + 14) % 360} size={160} blur={18} brightness={0.8} fixedHue noBreath />
+        {/* Bright core — screen blend to lighten the dark center spot */}
+        <div style={{
+          position: 'absolute',
+          left: DETAIL_BLOB_CENTER[0] - 52, top: DETAIL_BLOB_CENTER[1] - 52,
+          width: 104, height: 104, borderRadius: '50%',
+          background: `radial-gradient(circle, hsl(${liveHue},50%,90%) 0%, hsl(${liveHue},60%,78%) 40%, transparent 80%)`,
+          filter: 'blur(18px)',
+          mixBlendMode: 'screen',
+          opacity: 0.41,
+          pointerEvents: 'none',
+        }} />
+      </div>
+      {effectMounted && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 35, pointerEvents: 'none',
+          filter: 'blur(12px)',
+          opacity: pressing ? effectOpacity * blobBright : 0,
+          transition: pressing ? 'none' : 'opacity 1.5s ease-out',
+        }}>
+          <ShaderChromaFlowEffect hue={(liveHue - 18 + 360) % 360} brightness={blobBright} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1600,7 +2743,7 @@ function SourceDetailScreen({
 
 const DEFAULT_LIGHTS: LightSource[] = [
   { id: 1, name: 'Торшер',    brightness: 80,  on: true,  blobGroup: 2 }, // Group 1 (top)
-  { id: 2, name: 'Лампа',     brightness: 60,  on: true,  blobGroup: 1 }, // Group 2 (bottom-right)
+  { id: 2, name: 'Источник с шумами', brightness: 60, on: true, blobGroup: 1 }, // Group 2 (bottom-right)
   { id: 3, name: 'Шар',       brightness: 100, on: true,  blobGroup: 0 }, // Group 3 (left)
   { id: 4, name: 'LED-лента', brightness: 45,  on: false, blobGroup: 2 }, // Group 1
   { id: 5, name: 'Бра',       brightness: 70,  on: false, blobGroup: 1 }, // Group 2
@@ -1622,6 +2765,7 @@ export default function Home() {
   const [blobsColorized, setBlobsColorized] = useState(false);
   const [lights, setLights] = useState<LightSource[]>(DEFAULT_LIGHTS);
   const [detailLight, setDetailLight] = useState<LightSource | null>(null);
+  const [detailLight2, setDetailLight2] = useState<LightSource | null>(null);
   const detailFromCardRef = useRef<DOMRect | null>(null);
   const [flares, setFlares] = useState<FlareState[]>([]);
   const flareIdRef = useRef(0);
@@ -1635,6 +2779,47 @@ export default function Home() {
   const posToIdxAll = (p: number) => ((p % allN) + allN) % allN;
   const activeScene = posToIdxAll(logPos);
   const safeSceneIdx = Math.min(activeScene, SCENES.length - 1);
+  const safeSceneIdxRef = useRef(safeSceneIdx);
+  safeSceneIdxRef.current = safeSceneIdx;
+
+  const cursorLastRef = useRef(0);
+  const cursorIdleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorActiveRef = useRef(false);
+  const [cursorActive, setCursorActive] = useState(false);
+  const [cursorData, setCursorData] = useState({
+    a: '#ff8373', b: '#ffa042',
+    caAngle: 0, caRed: -1, caGreen: 0, caBlue: 1,
+  });
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cursorActiveRef.current) { cursorActiveRef.current = true; setCursorActive(true); }
+    if (cursorIdleRef.current) clearTimeout(cursorIdleRef.current);
+    cursorIdleRef.current = setTimeout(() => { cursorActiveRef.current = false; setCursorActive(false); }, 500);
+
+    const now = Date.now();
+    if (now - cursorLastRef.current < 80) return;
+    cursorLastRef.current = now;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const weights = BLOB_CORE_CENTERS.map(([cx, cy]) => 1 / Math.max(Math.hypot(x - cx, y - cy) ** 2, 2500));
+    const total = weights.reduce((s, w) => s + w, 0);
+    const n = weights.map(w => w / total);
+    const scene = SCENES[safeSceneIdxRef.current];
+    const r = Math.round(n.reduce((s, w, i) => s + w * scene.blobs[i].rim[0], 0));
+    const g = Math.round(n.reduce((s, w, i) => s + w * scene.blobs[i].rim[1], 0));
+    const b = Math.round(n.reduce((s, w, i) => s + w * scene.blobs[i].rim[2], 0));
+    const [hue, , lit] = rgbToHsl(r, g, b);
+    const [caRed, caGreen, caBlue] = analogousOffsets(hue);
+    setCursorData({
+      a: hslToRgb(hue, 100, Math.min(65, Math.max(50, lit))),
+      b: hslToRgb((hue - 22 + 360) % 360, 100, Math.min(68, Math.max(52, lit + 4))),
+      caAngle: hue,
+      caRed,
+      caGreen,
+      caBlue,
+    });
+  }, []);
 
   const saveLight = useCallback((id: number, sceneIdx: number, updates: SceneLightSettings) => {
     setLights(prev => prev.map(l => l.id === id ? {
@@ -1727,7 +2912,7 @@ export default function Home() {
   });
 
   const handleBlobClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (showOverview || showStylePicker || detailLight !== null) return;
+    if (showOverview || showStylePicker || detailLight !== null || detailLight2 !== null) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -1742,8 +2927,9 @@ export default function Home() {
     if (minDist > BLOB_CORE_MAX_DIST * 1.5) return;
     const primary = lights.find(l => l.blobGroup === nearestGroup && l.on)
       ?? lights.find(l => l.blobGroup === nearestGroup);
-    if (primary) openDetail(primary);
-  }, [showOverview, showStylePicker, detailLight, lights, openDetail]);
+    if (!primary) return;
+    setDetailLight2(primary);
+  }, [showOverview, showStylePicker, detailLight, detailLight2, lights, openDetail]);
 
   const handleFlare = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (showOverview || showStylePicker) return;
@@ -1791,10 +2977,18 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="relative overflow-hidden" style={{ width: W, height: H, background: "#17171C", borderRadius: 65 }} onPointerDown={handleFlare} onClick={handleBlobClick}>
-        <CSSBlobs sceneIdx={safeSceneIdx} groupBrightness={groupBrightness} />
+      <div className="relative overflow-hidden" style={{ width: W, height: H, background: "#17171C", borderRadius: 65 }} onPointerDown={handleFlare} onClick={handleBlobClick} onMouseMove={handleMouseMove}>
+        <CSSBlobsV1 sceneIdx={safeSceneIdx} groupBrightness={groupBrightness as [number, number, number]} groupCustomHues={groupCustomHues} groupSaturations={groupSaturations} />
+        <ShaderBlobV2 />
+        {false && <div style={{
+          position: 'absolute', left: 0, right: 0, top: 0, height: '73%', zIndex: 2, pointerEvents: 'none',
+          opacity: cursorActive ? 1 : 0,
+          transition: cursorActive ? 'opacity 0.35s ease-out' : 'opacity 1.1s ease-in',
+        }}>
+          <ShaderOverlay sceneIdx={safeSceneIdx} cursorColorA={cursorData.a} cursorColorB={cursorData.b} caAngle={cursorData.caAngle} caRed={cursorData.caRed} caGreen={cursorData.caGreen} caBlue={cursorData.caBlue} />
+        </div>}
         {/* Custom hue overlays — tint each blob group when a light has been configured */}
-        {groupCustomHues.map((customHue, group) => customHue === null ? null : (
+        {false && groupCustomHues.map((customHue, group) => customHue === null ? null : (
           <div key={group} style={{
             position: 'absolute',
             left: BLOB_CORE_CENTERS[group][0] - 200,
@@ -1808,9 +3002,9 @@ export default function Home() {
             zIndex: 2,
           }} />
         ))}
-        <BlobHeat sceneIdx={safeSceneIdx} />
+        {false && <BlobHeat sceneIdx={safeSceneIdx} />}
         {/* Sphere-style color overlays — fade in permanently after photo style is created */}
-        {([
+        {false && ([
           { group: 0, hue: 328, sat: 88 }, // pink  (left blob)
           { group: 1, hue: 38,  sat: 95 }, // yellow-orange (bottom-right)
           { group: 2, hue: 290, sat: 78 }, // purple (top)
@@ -1913,6 +3107,15 @@ export default function Home() {
             fromCardRect={detailFromCardRef.current ?? undefined}
             onClose={() => { setDetailLight(null); detailFromCardRef.current = null; }}
             onSave={(updates) => { saveLight(detailLight.id, activeScene, updates); setDetailLight(null); detailFromCardRef.current = null; }}
+          />
+        )}
+        {detailLight2 && (
+          <SourceDetailScreen2
+            light={detailLight2}
+            sceneIdx={activeScene}
+            onClose={() => setDetailLight2(null)}
+            onSave={(updates) => { saveLight(detailLight2.id, activeScene, updates); setDetailLight2(null); }}
+            onToggle={() => toggleLight(detailLight2.id)}
           />
         )}
         {showFromPhoto && (
@@ -2753,7 +3956,7 @@ function Controls({ onOverview, onSchedule }: { onOverview: () => void; onSchedu
   const glassBase: React.CSSProperties = {
     backdropFilter: 'blur(24px) saturate(180%)',
     WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-    border: '0.5px solid rgba(255,255,255,0.18)',
+    border: 'none',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 10px rgba(0,0,0,0.22)',
     cursor: 'pointer',
   };
